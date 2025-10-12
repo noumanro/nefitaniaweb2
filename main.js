@@ -389,8 +389,56 @@ function renderProjectCard(project) {
 
     // Cargar imágenes del carrusel
     console.log('Cargando imágenes para:', project.folder_location, 'con slug:', slug);
+    
+    // Si no hay folder_location, mostrar placeholder directamente
+    if (!project.folder_location || project.folder_location.trim() === '') {
+        console.warn('Proyecto sin folder_location definida:', project.title);
+        showNoImagesPlaceholder(slug, 'Sin carpeta configurada');
+        return;
+    }
+    
     const folder = normalizeFolderPath(project.folder_location);
     loadProjectCarouselFromFolder(folder, slug);
+}
+
+// Función auxiliar para mostrar placeholder cuando no hay imágenes
+function showNoImagesPlaceholder(carouselName, reason = 'Sin imágenes disponibles') {
+    const container = document.getElementById(`carousel-container-${carouselName}`);
+    const dotsContainer = document.querySelector(`.carousel-dots[data-carousel="${carouselName}"]`);
+    
+    if (!container) return;
+    
+    // Limpiar contenido existente
+    container.innerHTML = '';
+    if (dotsContainer) dotsContainer.innerHTML = '';
+    
+    // Crear placeholder
+    const placeholder = document.createElement('div');
+    placeholder.style.cssText = 'width:100%; height:100%; background:linear-gradient(135deg, rgba(255,106,0,0.08), rgba(255,106,0,0.02)); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:0.9rem; flex-shrink:0; flex-direction:column; gap:12px; border-radius:8px; border:1px dashed rgba(255,106,0,0.2);';
+    
+    let icon = '📷';
+    let subtitle = '';
+    
+    if (reason.includes('carpeta')) {
+        icon = '📁';
+        subtitle = 'Agrega <code>folder_location:</code> en proyecto.txt';
+    } else {
+        subtitle = 'Pronto habrá contenido visual';
+    }
+    
+    placeholder.innerHTML = `
+        <div style="font-size:2.5rem; opacity:0.7;">${icon}</div>
+        <div style="font-weight:600; text-align:center;">${reason}</div>
+        <div style="font-size:0.8rem; text-align:center; opacity:0.8; line-height:1.4;">${subtitle}</div>
+    `;
+    
+    container.appendChild(placeholder);
+    
+    // Ocultar botones de navegación
+    const prevBtn = container.parentElement.querySelector('.carousel-prev');
+    const nextBtn = container.parentElement.querySelector('.carousel-next');
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
 }
 
 // Carga todas las imágenes disponibles en la carpeta de forma más eficiente
@@ -411,15 +459,8 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     
     // Si no hay carpeta definida, mostrar placeholder y salir
     if (!folderPath) {
-        console.warn('Proyecto sin folder_location. Mostrando placeholder para:', carouselName);
-        const placeholder = document.createElement('div');
-        placeholder.style.cssText = 'width:100%; height:100%; background:rgba(255,106,0,0.1); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:0.9rem; flex-shrink:0; flex-direction:column; gap:8px;';
-        placeholder.innerHTML = `
-            <div style="font-size:2rem;">📷</div>
-            <div>Sin carpeta de imágenes</div>
-            <div style="font-size:0.8rem; text-align:center;">Agrega <code>folder_location:</code> en proyecto.txt</div>
-        `;
-        container.appendChild(placeholder);
+        console.warn('Proyecto sin folder_location válida. Mostrando placeholder para:', carouselName);
+        showNoImagesPlaceholder(carouselName, 'Sin carpeta configurada');
         return;
     }
     
@@ -489,14 +530,7 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     function showPlaceholder() {
         console.log('Mostrando placeholder para:', carouselName, 'Imágenes cargadas:', loadedCount);
         if (loadedCount === 0) {
-            const placeholder = document.createElement('div');
-            placeholder.style.cssText = 'width:100%; height:100%; background:rgba(255,106,0,0.1); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:0.9rem; flex-shrink:0; flex-direction:column; gap:8px;';
-            placeholder.innerHTML = `
-                <div style="font-size:2rem;">📷</div>
-                <div>Sin imágenes disponibles</div>
-                <div style="font-size:0.8rem; text-align:center;">Agrega imágenes a:<br><code style="background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${decodeURIComponent(folderPath)}/</code></div>
-            `;
-            container.appendChild(placeholder);
+            showNoImagesPlaceholder(carouselName, 'Sin fotos');
         }
     }
 
