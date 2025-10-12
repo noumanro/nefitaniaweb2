@@ -28,11 +28,20 @@
 }
 
 {
+  title: Volcan
+  state: proximamente
+  text: un volcan
+}
+{
   title: proximamente
   state: proximamente
   text: 
 }
-
+{
+  title: La comarca
+  state: proceso 
+  text: casitas de hobby  
+}
 
 # El sistema ahora carga automáticamente TODAS las imágenes que encuentre en cada carpeta
 # Simplemente coloca tus fotos en las carpetas correspondientes:
