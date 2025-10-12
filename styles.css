@@ -265,7 +265,7 @@ body {
     /* Social Media */
     .social-section{padding:56px 0 32px; background:linear-gradient(180deg, transparent, rgba(255,106,0,0.02))}
     .social-card{text-align:center}
-  .social-links{display:grid; grid-template-columns:1fr; gap:16px; max-width:600px; margin:0 auto; justify-items:center; align-items:center}
+  .social-links{display:flex; justify-content:center; align-items:center; gap:24px; flex-wrap:wrap; max-width:600px; margin:0 auto;}
       @media (min-width: 768px){ 
         .social-links{grid-template-columns:repeat(2,1fr); max-width:700px} 
       }
@@ -276,7 +276,7 @@ body {
       display:flex; align-items:center; gap:16px; padding:20px; 
       background:linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); 
       border:1px solid rgba(255,255,255,0.1); border-radius:16px; 
-      transition:all 0.3s ease; text-decoration:none; color:inherit; width:100%; max-width:420px;
+      transition:all 0.3s ease; text-decoration:none; color:inherit; max-width:320px; width:100%; justify-content:center;
     }
     .social-link:hover{
       transform:translateY(-4px); border-color:rgba(255,255,255,0.2);
@@ -301,7 +301,8 @@ body {
     .twitter-link:hover{box-shadow:0 8px 25px rgba(29,161,242,0.15); border-color:rgba(29,161,242,0.3)}
     
     @media (max-width: 767px){
-      .social-link{justify-content:center; text-align:center; flex-direction:column; gap:12px}
+      .social-links{flex-direction:column; gap:16px;}
+      .social-link{justify-content:center; text-align:center; flex-direction:column; gap:12px; max-width:90vw;}
       .social-icon{min-width:auto}
     }
 

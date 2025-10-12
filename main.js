@@ -418,18 +418,19 @@ function showNoImagesPlaceholder(carouselName, reason = 'Sin imágenes disponibl
     
     let icon = '📷';
     let subtitle = '';
-    
+    // Si es sin carpeta, mostrar el mensaje de configuración
     if (reason.includes('carpeta')) {
         icon = '📁';
         subtitle = 'Agrega <code>folder_location:</code> en proyecto.txt';
     } else {
-        subtitle = 'Pronto habrá contenido visual';
+        // Si es sin fotos, solo mostrar el ícono y texto
+        subtitle = '';
+        reason = 'Sin foto';
     }
-    
     placeholder.innerHTML = `
         <div style="font-size:2.5rem; opacity:0.7;">${icon}</div>
         <div style="font-weight:600; text-align:center;">${reason}</div>
-        <div style="font-size:0.8rem; text-align:center; opacity:0.8; line-height:1.4;">${subtitle}</div>
+        ${subtitle ? `<div style=\"font-size:0.8rem; text-align:center; opacity:0.8; line-height:1.4;\">${subtitle}</div>` : ''}
     `;
     
     container.appendChild(placeholder);
@@ -465,27 +466,8 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     }
     
     const extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-    
-    // Lista optimizada de nombres más comunes primero
-    const possibleNames = [
-        // Nombres más comunes primero
-        'image', 'img', '1', '2', '3', '4', '5',
-        'ojo', 'ojo1', 'ojo2', 'ojo3', 
-        // Nombres específicos conocidos de tus proyectos
-        '2025-10-11_16.31.11', '2025-10-11_16.31.33', '2025-10-11_16.32.20', '2025-10-11_16.32.56',
-        '2025-10-11_20.06.50', '2025-10-11_20.06.59',
-        // Más variaciones
-        'granja', 'tortuga', 'castillo', 'submarina', 'torre',
-        'foto', 'pic', 'screenshot', 'capture', 'main', 'cover',
-        '6', '7', '8', '9', '10', '11', '12',
-        '01', '02', '03', '04', '05', '06',
-        'img1', 'img2', 'img3', 'img4', 'img5', 'img6',
-        'image1', 'image2', 'image3', 'image4', 'image5', 'image6'
-    ];
 
     let loadedCount = 0;
-    let attemptedCount = 0;
-    const maxAttempts = possibleNames.length * extensions.length;
 
     // Función para agregar una imagen al carrusel
     function addImageToCarousel(imageSrc, index) {
@@ -572,58 +554,9 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         }
     }
 
-    // Probar cada combinación de forma más controlada (fallback si no hay índice)
-    let nameIndex = 0;
-    let extIndex = 0;
-
-    function tryNextImage() {
-        if (nameIndex >= possibleNames.length) {
-            console.log('Terminada búsqueda de imágenes para:', carouselName, 'Total encontradas:', loadedCount);
-            showPlaceholder();
-            return;
-        }
-
-        const baseName = possibleNames[nameIndex];
-        const ext = extensions[extIndex];
-        const testUrl = `${folderPath}/${encodeURIComponent(baseName)}.${ext}`;
-        
-        console.log('Probando imagen:', testUrl);
-        const img = new Image();
-        img.onload = function() {
-            console.log('Imagen cargada exitosamente:', testUrl);
-            addImageToCarousel(testUrl, loadedCount);
-            loadedCount++;
-            // Continuar buscando más imágenes
-            advanceToNext();
-        };
-        img.onerror = function() {
-            // Continuar con la siguiente combinación
-            advanceToNext();
-        };
-        img.src = testUrl;
-        
-        attemptedCount++;
-    }
-
-    function advanceToNext() {
-        extIndex++;
-        if (extIndex >= extensions.length) {
-            extIndex = 0;
-            nameIndex++;
-        }
-        
-        // Limitar intentos para evitar demasiados requests
-        if (attemptedCount < maxAttempts && nameIndex < possibleNames.length) {
-            // Usar timeout para no saturar el navegador
-            setTimeout(tryNextImage, 10);
-        } else if (loadedCount === 0) {
-            showPlaceholder();
-        }
-    }
-
     // Iniciar: intentar índice y si falla, usar búsqueda por nombres
     tryDirectoryListing().then(ok => {
-        if (!ok) tryNextImage();
+        if (!ok) showPlaceholder();
     });
 }
 
