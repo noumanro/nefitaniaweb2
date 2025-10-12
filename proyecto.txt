@@ -1,0 +1,43 @@
+# Formato por proyecto:
+# {
+#   title: Texto del título
+#   state: Estado corto (Activo, En curso, Nuevo, etc.)
+#   text: Descripción en una o varias líneas
+#   folder_location: Ruta a la carpeta de imágenes (relativa a image/ o completa comenzando por image/)
+# }
+
+{
+  title: Fortaleza de Sauron
+  state: Activo
+  text: Construcción colaborativa de la base principal con salas temáticas y sistema de defensa.
+  folder_location: ojo sauron
+}
+
+{
+  title: Granja XP
+  state: En curso
+  text: Proyecto de granja de experiencia para el clan.
+  folder_location: granja Xp
+}
+
+{
+  title: La Tortuga Destartalada
+  state: Nuevo
+  text: Construcción especial: creada apartir de la tortuga destartalada en marbella 3.
+  folder_location: la tortuga destartalada
+}
+
+{
+  title: proximamente
+  state: proximamente
+  text: 
+}
+
+
+# El sistema ahora carga automáticamente TODAS las imágenes que encuentre en cada carpeta
+# Simplemente coloca tus fotos en las carpetas correspondientes:
+# - image/ojo sauron/
+# - image/granja Xp/ 
+# - image/la tortuga destartalada/
+# - image/castillo/
+# Sin importar cómo se llamen, el sistema las detectará automáticamente
