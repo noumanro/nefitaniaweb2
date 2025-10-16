@@ -27,6 +27,7 @@
       </button>
       <div class="actions" id="nav-actions">
         <a class="btn" href="#quienes">Quiénes somos</a>
+        <a class="btn" href="#miembros">Miembros</a>
         <a class="btn" href="#reglas">Reglas</a>
         <a class="btn" href="#discord">Discord</a>
         <a class="btn" href="#servidor">Servidor</a>
@@ -109,6 +110,38 @@
         <div id="modal-image" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:9999; align-items:center; justify-content:center; background:rgba(0,0,0,0.9); backdrop-filter:blur(4px);">
           <button id="cerrar-image" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.9); border:none; font-size:1.5rem; color:#000; cursor:pointer; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10000;">×</button>
           <img id="modal-image-content" src="" style="max-width:90vw; max-height:90vh; object-fit:contain; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+        </div>
+      </div>
+    </section>
+
+    <!-- MIEMBROS -->
+    <section id="miembros">
+      <div class="card">
+        <h2>👥 Miembros del clan</h2>
+        <p style="text-align:center; color:var(--muted); margin-bottom:32px;">
+          Conoce a los miembros de Nefitania. Haz clic y arrastra para rotar las skins en 3D.
+        </p>
+        
+        <div id="skins-carousel" class="skins-carousel">
+          <button id="prev-skin" class="carousel-btn carousel-prev">‹</button>
+          <div id="skins-container" class="skins-container">
+            <!-- Las skins se cargarán dinámicamente aquí -->
+            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+              <div style="font-size:3rem; margin-bottom:16px;">⏳</div>
+              <p style="color:var(--muted);">Cargando skins...</p>
+            </div>
+          </div>
+          <button id="next-skin" class="carousel-btn carousel-next">›</button>
+        </div>
+        
+        <div id="skin-info" style="text-align:center; margin-top:24px; min-height:60px;">
+          <!-- Información del miembro actual -->
+        </div>
+
+        <div style="margin-top: 24px; padding: 16px; background: rgba(255,106,0,0.1); border-left: 4px solid var(--accent); border-radius: 8px; text-align:center;">
+          <p style="margin: 0; color: var(--muted); font-size:0.9rem;">
+            💡 <strong>Tip:</strong> Usa las flechas o arrastra para navegar entre los miembros
+          </p>
         </div>
       </div>
     </section>
@@ -328,6 +361,8 @@
     </div>
   </footer>
 
+  <!-- Librería para renderizar skins de Minecraft en 3D -->
+  <script src="https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

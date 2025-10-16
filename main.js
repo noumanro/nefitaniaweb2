@@ -968,3 +968,206 @@ function initActiveNavigation() {
         });
     });
 }
+
+// ========================================
+// CARRUSEL DE SKINS 3D DE MIEMBROS
+// ========================================
+let currentSkinIndex = 0;
+let skinViewers = [];
+let skinsData = [];
+    
+    // Carga dinámica de la librería skinview3d con fallback de CDN
+    async function ensureSkinview3dLoaded() {
+        if (typeof window.skinview3d !== 'undefined') return true;
+        function inject(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve(true);
+                s.onerror = () => reject(new Error('Failed to load ' + src));
+                document.head.appendChild(s);
+            });
+        }
+        try {
+            await inject('https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js');
+            return typeof window.skinview3d !== 'undefined';
+        } catch (_) {
+            try {
+                await inject('https://unpkg.com/skinview3d@3/bundles/skinview3d.min.js');
+                return typeof window.skinview3d !== 'undefined';
+            } catch (__) {
+                return false;
+            }
+        }
+    }
+
+async function loadMinecraftSkins() {
+    // Detectar si estamos en local o producción
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const baseUrl = isLocal 
+        ? 'image/skin' 
+        : 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/skin';
+    
+    const container = document.getElementById('skins-container');
+    const skinInfo = document.getElementById('skin-info');
+    
+    if (!container || typeof skinview3d === 'undefined') {
+        console.warn('SkinView3D no está disponible o el contenedor no existe');
+        return;
+    }
+    
+    // Asegurar que la librería esté cargada (con fallback)
+    const ok = await ensureSkinview3dLoaded();
+    if (!ok || typeof window.skinview3d === 'undefined') {
+        console.error('No se pudo cargar skinview3d');
+        container.innerHTML = `
+            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+                <div style="font-size:3rem; margin-bottom:16px;">⚠️</div>
+                <p style="color:var(--muted);">No se pudo cargar el visor 3D</p>
+                <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">Revisa tu conexión a internet y vuelve a intentarlo</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Intentar cargar hasta 30 skins numeradas
+    const maxSkins = 30;
+    const promises = [];
+    
+    for (let i = 1; i <= maxSkins; i++) {
+        const skinUrl = `${baseUrl}/${i}.png`;
+        promises.push(
+            fetch(skinUrl, { method: 'HEAD', cache: 'no-store' })
+                .then(res => res.ok ? { url: skinUrl, number: i } : null)
+                .catch(() => null)
+        );
+    }
+    
+    const results = await Promise.all(promises);
+    const validSkins = results.filter(skin => skin !== null);
+    
+    if (validSkins.length === 0) {
+        container.innerHTML = `
+            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+                <div style="font-size:3rem; margin-bottom:16px;">📦</div>
+                <p style="color:var(--muted);">No se encontraron skins de miembros</p>
+                <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">
+                    Agrega archivos .png numerados (1.png, 2.png, etc.) a la carpeta <code>/image/skin/</code>
+                </p>
+            </div>
+        `;
+        return;
+    }
+    
+    skinsData = validSkins;
+    container.innerHTML = '';
+    
+    // Crear visualizadores de skins
+    validSkins.forEach((skin, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'skin-viewer-wrapper';
+        wrapper.style.display = index === 0 ? 'flex' : 'none';
+        
+        const viewerDiv = document.createElement('div');
+        viewerDiv.className = 'skin-viewer';
+        viewerDiv.id = `skin-viewer-${index}`;
+        
+        wrapper.appendChild(viewerDiv);
+        container.appendChild(wrapper);
+        
+        // Crear el visor 3D
+        const skinViewer = new skinview3d.SkinViewer({
+            canvas: document.createElement('canvas'),
+            width: 350,
+            height: 350,
+            skin: skin.url
+        });
+        
+        // Configurar el visor
+        skinViewer.controls.enableRotate = true;
+        skinViewer.controls.enableZoom = false;
+        skinViewer.controls.enablePan = false;
+        
+        // Animaciones
+        skinViewer.animation = new skinview3d.IdleAnimation();
+        skinViewer.animation.speed = 0.5;
+        
+        // Configurar cámara
+        skinViewer.camera.position.set(0, 18, 35);
+        
+        // Auto-rotación suave
+        let autoRotate = true;
+        skinViewer.controls.addEventListener('start', () => autoRotate = false);
+        skinViewer.controls.addEventListener('end', () => autoRotate = true);
+        
+        function animate() {
+            if (autoRotate) {
+                skinViewer.playerObject.rotation.y += 0.005;
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+        
+        // Insertar el canvas
+        viewerDiv.appendChild(skinViewer.canvas);
+        
+        // Guardar referencia
+        skinViewers.push({
+            viewer: skinViewer,
+            wrapper: wrapper,
+            skinNumber: skin.number
+        });
+    });
+    
+    // Mostrar información del primer miembro
+    updateSkinInfo();
+    
+    // Configurar botones de navegación
+    const prevBtn = document.getElementById('prev-skin');
+    const nextBtn = document.getElementById('next-skin');
+    
+    if (prevBtn && nextBtn) {
+        prevBtn.onclick = () => navigateSkins(-1);
+        nextBtn.onclick = () => navigateSkins(1);
+    }
+}
+
+function navigateSkins(direction) {
+    if (skinViewers.length === 0) return;
+    
+    // Ocultar skin actual
+    skinViewers[currentSkinIndex].wrapper.style.display = 'none';
+    
+    // Calcular nuevo índice
+    currentSkinIndex = (currentSkinIndex + direction + skinViewers.length) % skinViewers.length;
+    
+    // Mostrar nueva skin
+    skinViewers[currentSkinIndex].wrapper.style.display = 'flex';
+    
+    // Actualizar información
+    updateSkinInfo();
+}
+
+function updateSkinInfo() {
+    const skinInfo = document.getElementById('skin-info');
+    if (!skinInfo || skinViewers.length === 0) return;
+    
+    const currentSkin = skinViewers[currentSkinIndex];
+    
+    skinInfo.innerHTML = `
+        <h3>Miembro #${currentSkin.skinNumber}</h3>
+        <p>
+            Skin ${currentSkinIndex + 1} de ${skinViewers.length}
+            <br>
+            <span style="font-size:0.85rem; opacity:0.7;">Haz clic y arrastra para rotar • Usa las flechas para navegar</span>
+        </p>
+    `;
+}
+
+// Cargar skins cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadMinecraftSkins);
+} else {
+    loadMinecraftSkins();
+}
