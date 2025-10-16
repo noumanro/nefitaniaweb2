@@ -84,31 +84,51 @@ def scan_and_convert(directory, quality=85, delete_original=False, exclude_files
     # Recorrer todos los archivos
     for root, dirs, files in os.walk(directory):
         png_files = [f for f in files if f.lower().endswith('.png') and f not in exclude_files]
-        
+        png_files.sort()  # Orden alfabético para consistencia
         if not png_files:
             continue
-            
         print(f"\n📁 {os.path.relpath(root, directory)}/")
-        
-        for filename in png_files:
+        # Buscar el mayor número de WebP existente
+        existing_webps = [f for f in files if f.lower().endswith('.webp')]
+        max_num = 0
+        for w in existing_webps:
+            try:
+                n = int(os.path.splitext(w)[0])
+                if n > max_num:
+                    max_num = n
+            except ValueError:
+                continue
+        # Numerar los nuevos WebP a partir del siguiente número
+        for i, filename in enumerate(png_files, 1):
             png_path = os.path.join(root, filename)
-            print(f"  🖼️  {filename}")
-            
-            success, webp_path, original_size, new_size = convert_png_to_webp(
-                png_path, quality, delete_original
-            )
-            
-            if success:
+            webp_num = max_num + i
+            webp_name = f"{webp_num}.webp"
+            webp_path = os.path.join(root, webp_name)
+            print(f"  🖼️  {filename} → {webp_name}")
+            try:
+                with Image.open(png_path) as img:
+                    if img.mode in ('RGBA', 'LA'):
+                        background = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode == 'RGBA':
+                            background.paste(img, mask=img.split()[-1])
+                        else:
+                            background.paste(img)
+                        img = background
+                    elif img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    img.save(webp_path, 'WebP', quality=quality, optimize=True)
+                original_size = os.path.getsize(png_path)
+                new_size = os.path.getsize(webp_path)
+                if delete_original:
+                    os.remove(png_path)
+                    print(f"      ✓ Eliminado: {os.path.basename(png_path)}")
                 converted_count += 1
                 total_original += original_size
                 total_new += new_size
-                
-                # Calcular reducción
                 reduction = ((original_size - new_size) / original_size) * 100 if original_size > 0 else 0
-                
-                print(f"      {format_bytes(original_size)} → {format_bytes(new_size)} "
-                      f"(-{reduction:.1f}%)")
-            else:
+                print(f"      {format_bytes(original_size)} → {format_bytes(new_size)} (-{reduction:.1f}%)")
+            except Exception as e:
+                print(f"      ✗ Error convirtiendo {filename}: {e}")
                 failed_count += 1
     
     # Resumen final
