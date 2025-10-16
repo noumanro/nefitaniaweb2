@@ -217,10 +217,12 @@ function normalizeFolderPath(path) {
     const p = String(path).trim().replace(/\\/g, '/');
     const withPrefix = p.startsWith('image/') ? p : `image/${p}`;
     // Codificar cada segmento para soportar espacios y caracteres especiales
-    return withPrefix
+    const encodedPath = withPrefix
         .split('/')
         .map((seg, i) => (i === 0 ? seg : encodeURIComponent(seg))) // no codificar 'image'
         .join('/');
+    // Usar URL de GitHub raw para producción
+    return `https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/${encodedPath}`;
 }
 
 // Datos de proyectos embebidos directamente en el código
@@ -519,42 +521,36 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     // Primero, intentar leer el listado del directorio (si el servidor lo permite)
     async function tryDirectoryListing() {
         try {
-            const res = await fetch(`${folderPath}/`, { cache: 'no-store' });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const contentType = res.headers.get('content-type') || '';
-            const html = await res.text();
-            if (!/text\/html/i.test(contentType) && !/<a\s+/i.test(html)) {
-                throw new Error('No parece un índice de directorio');
+            // Para GitHub raw, intentamos cargar imágenes numeradas (1.webp, 2.webp, etc.)
+            const maxImages = 30; // Intentar hasta 30 imágenes
+            const promises = [];
+            
+            for (let i = 1; i <= maxImages; i++) {
+                const imgUrl = `${folderPath}/${i}.webp`;
+                promises.push(
+                    fetch(imgUrl, { method: 'HEAD', cache: 'no-store' })
+                        .then(res => res.ok ? imgUrl : null)
+                        .catch(() => null)
+                );
             }
-            const tmp = document.createElement('div');
-            tmp.innerHTML = html;
-            const links = Array.from(tmp.querySelectorAll('a'))
-                .map(a => a.getAttribute('href'))
-                .filter(Boolean)
-                .filter(h => {
-                    const lower = h.toLowerCase();
-                    return extensions.some(ext => lower.endsWith('.' + ext));
-                })
-                .map(h => {
-                    // Si el href es absoluto o relativo al índice
-                    // En listado de python, suelen ser nombres como 'img1.jpg'
-                    return `${folderPath}/${encodeURIComponent(h.replace(/^\/?/, ''))}`;
-                });
-
-            // Evitar duplicados y limitar a 20 imágenes
-            const unique = Array.from(new Set(links)).slice(0, 20);
-            unique.forEach((url, idx) => addImageToCarousel(url, loadedCount++));
-            if (loadedCount === 0) throw new Error('Índice sin imágenes');
-            // Inicializar drag si cargamos del índice
+            
+            const results = await Promise.all(promises);
+            const validImages = results.filter(url => url !== null);
+            
+            if (validImages.length === 0) throw new Error('No se encontraron imágenes');
+            
+            validImages.forEach((url, idx) => addImageToCarousel(url, loadedCount++));
+            
+            // Inicializar drag si cargamos imágenes
             setTimeout(() => initSingleCarouselDrag(carouselName), 50);
             return true;
         } catch (e) {
-            console.info('No se pudo leer índice de', folderPath, '-', e.message || e);
+            console.info('No se pudieron cargar imágenes de', folderPath, '-', e.message || e);
             return false;
         }
     }
 
-    // Iniciar: intentar índice y si falla, usar búsqueda por nombres
+    // Iniciar: intentar cargar imágenes y si falla, mostrar placeholder
     tryDirectoryListing().then(ok => {
         if (!ok) showPlaceholder();
     });
