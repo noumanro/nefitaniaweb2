@@ -8,39 +8,54 @@
 
 {
   title: Fortaleza de Sauron
-  state: Activo
+  state: terminada
   text: Construcción colaborativa de la base principal con salas temáticas y sistema de defensa.
   folder_location: ojo sauron
 }
 
 {
   title: Granja XP
-  state: En curso
+  state: terminada
   text: Proyecto de granja de experiencia para el clan.
   folder_location: granja Xp
 }
 
 {
   title: La Tortuga Destartalada
-  state: Nuevo
+  state: terminada
   text: Construcción especial: creada apartir de la tortuga destartalada en marbella 3.
   folder_location: la tortuga destartalada
 }
 
 {
   title: Volcan
-  state: proximamente
-  text: un volcan
+  state: en proceso
+  text: 
+  folder_location: volcan
 }
 {
-  title: proximamente
-  state: proximamente
+  title: Portal nether
+  state: terminado
   text: 
+  folder_location: Portal nether
+}
+{
+  title: Orthanc
+  state: en proceso
+  text: 
+  folder_location: Orthanc
 }
 {
   title: La comarca
   state: proceso 
-  text: casitas de hobby  
+  text: casitas de hobby hechas por el clan
+  folder_location: la comarca
+}
+
+{
+  title: proximamente
+  state: proximamente
+  text: 
 }
 
 # El sistema ahora carga automáticamente TODAS las imágenes que encuentre en cada carpeta
