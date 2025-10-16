@@ -361,8 +361,40 @@
     </div>
   </footer>
 
-  <!-- Librería para renderizar skins de Minecraft en 3D -->
-  <script src="https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js"></script>
+  <!-- Librería para renderizar skins de Minecraft en 3D: intenta local y luego CDNs -->
+  <script>
+    (function() {
+      function inject(src, onload, onerror) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.async = true;
+        s.onload = onload;
+        s.onerror = onerror;
+        document.head.appendChild(s);
+      }
+      var sources = [
+        'vendor/skinview3d.min.js',
+        'https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js',
+        'https://unpkg.com/skinview3d@3/bundles/skinview3d.min.js'
+      ];
+      function tryNext() {
+        var next = sources.shift();
+        if (!next) {
+          console.warn('[skinview3d] No se pudo cargar desde ninguna fuente');
+          return;
+        }
+        inject(next, function(){
+          console.log('[skinview3d] cargado desde', next);
+        }, function(){
+          console.warn('[skinview3d] fallo al cargar desde', next);
+          tryNext();
+        });
+      }
+      if (!window.skinview3d) {
+        tryNext();
+      }
+    })();
+  </script>
   <script src="main.js"></script>
 </body>
 </html>

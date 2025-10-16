@@ -1012,40 +1012,163 @@ async function loadMinecraftSkins() {
     const container = document.getElementById('skins-container');
     const skinInfo = document.getElementById('skin-info');
     
-    if (!container || typeof skinview3d === 'undefined') {
-        console.warn('SkinView3D no está disponible o el contenedor no existe');
+    // Verificar que el contenedor exista
+    if (!container) {
+        console.warn('Contenedor de skins no encontrado');
         return;
     }
-    
+    // Intentar cargar manifest de nombres (skins.json)
+    let manifestSkins = null;
+    try {
+        const res = await fetch(`${baseUrl}/skins.json`, { cache: 'no-store' });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                manifestSkins = data
+                    .filter(e => e && typeof e.file === 'string' && e.file.toLowerCase().endsWith('.png') && !String(e.file).includes('/'))
+                    .map((e, i) => {
+                        const file = String(e.file).trim();
+                        const fileEncoded = encodeURIComponent(file);
+                        const url = `${baseUrl}/${fileEncoded}`;
+                        const basename = file.replace(/\.[^.]+$/, '');
+                        const inferred = basename.replace(/[\-_]+/g, ' ').trim();
+                        const name = typeof e.name === 'string' && e.name.trim() ? e.name.trim() : (inferred || `Miembro ${i + 1}`);
+                        // Intentar obtener número desde el nombre del archivo
+                        const numMatch = basename.match(/(\d+)/);
+                        const number = numMatch ? parseInt(numMatch[1], 10) : (i + 1);
+                        return { url, number, name, file };
+                    });
+                if (manifestSkins.length === 0) manifestSkins = null;
+            }
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar skins.json:', e);
+    }
+
     // Asegurar que la librería esté cargada (con fallback)
     const ok = await ensureSkinview3dLoaded();
     if (!ok || typeof window.skinview3d === 'undefined') {
-        console.error('No se pudo cargar skinview3d');
-        container.innerHTML = `
-            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
-                <div style="font-size:3rem; margin-bottom:16px;">⚠️</div>
-                <p style="color:var(--muted);">No se pudo cargar el visor 3D</p>
-                <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">Revisa tu conexión a internet y vuelve a intentarlo</p>
-            </div>
-        `;
+        console.error('No se pudo cargar skinview3d; usando galería estática');
+        // Fallback: mostrar galería estática con <img> usando manifest si existe
+        let items = [];
+        if (manifestSkins) {
+            items = manifestSkins.map(s => ({ url: s.url, name: s.name }));
+        } else {
+            // Si estamos en local, intentar listar el directorio para descubrir .png
+            if (isLocal) {
+                try {
+                    const idxRes = await fetch(`${baseUrl}/`, { cache: 'no-store' });
+                    if (idxRes.ok) {
+                        const html = await idxRes.text();
+                        const matches = [...html.matchAll(/href=\"([^\"]+\.png)\"/gi)];
+                        const files = matches.map(m => decodeURIComponent(m[1])).filter(f => !f.startsWith('?'));
+                        const unique = Array.from(new Set(files));
+                        items = unique.map(f => {
+                            const file = f.split('/').pop();
+                            const url = `${baseUrl}/${encodeURIComponent(file)}`;
+                            const base = file.replace(/\.[^.]+$/, '');
+                            const name = base.replace(/[\-_]+/g, ' ').trim();
+                            return { url, name: name || base };
+                        });
+                    }
+                } catch (e) {
+                    console.warn('No se pudo listar el directorio de skins en local:', e);
+                }
+            }
+            // Si no hay manifest ni listado local, usar numeración 1..30
+            if (items.length === 0) {
+                const maxSkins = 30;
+                const headChecks = [];
+                for (let i = 1; i <= maxSkins; i++) {
+                    const url = `${baseUrl}/${i}.png`;
+                    headChecks.push(fetch(url, { method: 'HEAD', cache: 'no-store' })
+                        .then(res => res.ok ? { url, name: `Miembro ${i}` } : null)
+                        .catch(() => null));
+                }
+                items = (await Promise.all(headChecks)).filter(Boolean);
+            }
+        }
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+                    <div style="font-size:3rem; margin-bottom:16px;">📦</div>
+                    <p style="color:var(--muted);">No se encontraron skins de miembros</p>
+                    <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">Agrega archivos .png numerados (1.png, 2.png, etc.) a la carpeta <code>/image/skin/</code></p>
+                </div>
+            `;
+            return;
+        }
+        // Render estático
+        let idx = 0;
+        container.innerHTML = '';
+        const imgEl = document.createElement('img');
+        imgEl.style.cssText = 'max-width:350px; height:auto; border-radius:12px; border:2px solid rgba(255,106,0,0.2); background:rgba(255,106,0,0.06); display:block; margin:0 auto;';
+        imgEl.alt = 'Skin de miembro';
+        imgEl.src = items[idx].url;
+        container.appendChild(imgEl);
+
+        const info = document.getElementById('skin-info');
+        function updateInfo() {
+            if (info) {
+                info.innerHTML = `
+                    <h3>${items[idx].name || ('Miembro #' + (idx + 1))}</h3>
+                    <p>Skin ${idx + 1} de ${items.length} <br><span style="font-size:0.85rem; opacity:0.7;">Visor 3D no disponible; mostrando imagen estática</span></p>
+                `;
+            }
+        }
+        updateInfo();
+
+        const prevBtn = document.getElementById('prev-skin');
+        const nextBtn = document.getElementById('next-skin');
+        if (prevBtn && nextBtn) {
+            prevBtn.onclick = () => { idx = (idx - 1 + items.length) % items.length; imgEl.src = items[idx].url; updateInfo(); };
+            nextBtn.onclick = () => { idx = (idx + 1) % items.length; imgEl.src = items[idx].url; updateInfo(); };
+        }
         return;
     }
     
-    // Intentar cargar hasta 30 skins numeradas
-    const maxSkins = 30;
-    const promises = [];
-    
-    for (let i = 1; i <= maxSkins; i++) {
-        const skinUrl = `${baseUrl}/${i}.png`;
-        promises.push(
-            fetch(skinUrl, { method: 'HEAD', cache: 'no-store' })
-                .then(res => res.ok ? { url: skinUrl, number: i } : null)
-                .catch(() => null)
-        );
+    // Intentar manifest primero; si no, descubrimiento local (localhost) o numeración
+    let validSkins = [];
+    if (manifestSkins) {
+        validSkins = manifestSkins;
+    } else if (isLocal) {
+        try {
+            const idxRes = await fetch(`${baseUrl}/`, { cache: 'no-store' });
+            if (idxRes.ok) {
+                const html = await idxRes.text();
+                const matches = [...html.matchAll(/href=\"([^\"]+\.png)\"/gi)];
+                const files = matches.map(m => decodeURIComponent(m[1])).filter(f => !f.startsWith('?'));
+                const unique = Array.from(new Set(files));
+                validSkins = unique.map((f, i) => {
+                    const file = f.split('/').pop();
+                    const url = `${baseUrl}/${encodeURIComponent(file)}`;
+                    const base = file.replace(/\.[^.]+$/, '');
+                    const numMatch = base.match(/(\d+)/);
+                    const number = numMatch ? parseInt(numMatch[1], 10) : (i + 1);
+                    const name = base.replace(/[\-_]+/g, ' ').trim() || `Miembro ${number}`;
+                    return { url, number, name, file };
+                });
+            }
+        } catch (e) {
+            console.warn('No se pudo listar el directorio de skins en 3D/local:', e);
+        }
     }
-    
-    const results = await Promise.all(promises);
-    const validSkins = results.filter(skin => skin !== null);
+
+    if (!validSkins || validSkins.length === 0) {
+        const maxSkins = 30;
+        const promises = [];
+        for (let i = 1; i <= maxSkins; i++) {
+            const skinUrl = `${baseUrl}/${i}.png`;
+            promises.push(
+                fetch(skinUrl, { method: 'HEAD', cache: 'no-store' })
+                    .then(res => res.ok ? { url: skinUrl, number: i, name: `Miembro ${i}`, file: `${i}.png` } : null)
+                    .catch(() => null)
+            );
+        }
+        const results = await Promise.all(promises);
+        validSkins = results.filter(Boolean);
+    }
     
     if (validSkins.length === 0) {
         container.innerHTML = `
@@ -1116,7 +1239,8 @@ async function loadMinecraftSkins() {
         skinViewers.push({
             viewer: skinViewer,
             wrapper: wrapper,
-            skinNumber: skin.number
+            skinNumber: skin.number,
+            name: skin.name
         });
     });
     
@@ -1155,8 +1279,9 @@ function updateSkinInfo() {
     
     const currentSkin = skinViewers[currentSkinIndex];
     
+    const displayName = currentSkin.name || `Miembro #${currentSkin.skinNumber}`;
     skinInfo.innerHTML = `
-        <h3>Miembro #${currentSkin.skinNumber}</h3>
+        <h3>${displayName}</h3>
         <p>
             Skin ${currentSkinIndex + 1} de ${skinViewers.length}
             <br>
