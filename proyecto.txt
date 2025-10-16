@@ -37,13 +37,13 @@
   title: Portal nether
   state: terminado
   text: 
-  folder_location: Portal nether
+  folder_location: portal nether
 }
 {
   title: Orthanc
   state: en proceso
   text: 
-  folder_location: Orthanc
+  folder_location: orthanc
 }
 {
   title: La comarca
