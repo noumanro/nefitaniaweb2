@@ -44,15 +44,78 @@ document.addEventListener('keydown', function(e) {
 // CARRUSEL PRINCIPAL (QUIÉNES SOMOS)
 // ========================================
 let currentSlide = 0;
-const totalSlides = 7;
+let totalSlides = 0;
 const carouselContainer = document.getElementById('carousel-container');
-const dots = document.querySelectorAll('.dot');
+const dotsContainer = document.getElementById('carousel-dots');
+
+// Cargar imágenes dinámicamente de la carpeta nosotros
+async function loadMainCarouselImages() {
+    const baseUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/nosotros';
+    const maxImages = 50; // Intentar hasta 50 imágenes
+    const promises = [];
+    
+    for (let i = 1; i <= maxImages; i++) {
+        const imgUrl = `${baseUrl}/${i}.webp`;
+        promises.push(
+            fetch(imgUrl, { method: 'HEAD', cache: 'no-store' })
+                .then(res => res.ok ? imgUrl : null)
+                .catch(() => null)
+        );
+    }
+    
+    const results = await Promise.all(promises);
+    const validImages = results.filter(url => url !== null);
+    
+    if (validImages.length === 0) {
+        console.warn('No se encontraron imágenes en la galería de miembros');
+        return;
+    }
+    
+    totalSlides = validImages.length;
+    
+    // Limpiar contenedor y dots
+    carouselContainer.innerHTML = '';
+    dotsContainer.innerHTML = '';
+    
+    // Agregar imágenes al carrusel
+    validImages.forEach((url, index) => {
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:pointer;';
+        img.onclick = function() { openImageModal(this.src); };
+        carouselContainer.appendChild(img);
+        
+        // Crear dot
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.dataset.slide = index;
+        dot.style.cssText = `width:8px; height:8px; border-radius:50%; background:${index === 0 ? '#ff6a00' : 'rgba(255,255,255,0.5)'}; cursor:pointer; transition:all 0.2s;`;
+        dot.onclick = function() {
+            currentSlide = parseInt(this.dataset.slide);
+            updateCarousel();
+        };
+        dotsContainer.appendChild(dot);
+    });
+    
+    // Inicializar carrusel
+    updateCarousel();
+    initMainCarouselDrag();
+    
+    // Auto-avance del carrusel cada 5 segundos
+    setInterval(function() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        updateCarousel();
+    }, 5000);
+}
 
 function updateCarousel() {
+    if (totalSlides === 0) return;
+    
     const translateX = -currentSlide * 100;
     carouselContainer.style.transform = `translateX(${translateX}%)`;
     
     // Actualizar dots
+    const dots = dotsContainer.querySelectorAll('.dot');
     dots.forEach((dot, index) => {
         if (index === currentSlide) {
             dot.style.background = '#ff6a00';
@@ -63,28 +126,19 @@ function updateCarousel() {
 }
 
 document.getElementById('next-img').onclick = function() {
+    if (totalSlides === 0) return;
     currentSlide = (currentSlide + 1) % totalSlides;
     updateCarousel();
 };
 
 document.getElementById('prev-img').onclick = function() {
+    if (totalSlides === 0) return;
     currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
     updateCarousel();
 };
 
-// Clicks en los dots
-dots.forEach((dot, index) => {
-    dot.onclick = function() {
-        currentSlide = index;
-        updateCarousel();
-    };
-});
-
-// Auto-avance del carrusel cada 5 segundos
-setInterval(function() {
-    currentSlide = (currentSlide + 1) % totalSlides;
-    updateCarousel();
-}, 5000);
+// Cargar imágenes al iniciar
+loadMainCarouselImages();
 
 // Funcionalidad de arrastrar para el carrusel principal
 function initMainCarouselDrag() {
