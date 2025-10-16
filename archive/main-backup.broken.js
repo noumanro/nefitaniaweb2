@@ -77,23 +77,10 @@ async function loadMainCarouselImages() {
     carouselContainer.innerHTML = '';
     dotsContainer.innerHTML = '';
     
-    // Agregar imágenes al carrusel con lazy loading
+    // Agregar imágenes al carrusel
     validImages.forEach((url, index) => {
         const img = document.createElement('img');
-        // Solo cargar las primeras 2 imágenes inmediatamente
-        if (index < 2) {
-            img.src = url;
-        } else {
-            img.dataset.src = url;
-            img.loading = 'lazy';
-            // Cargar cuando sea necesario
-            setTimeout(() => {
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    delete img.dataset.src;
-                }
-            }, 1000 + index * 200);
-        }
+        img.src = url;
         img.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:pointer;';
         img.onclick = function() { openImageModal(this.src); };
         carouselContainer.appendChild(img);
@@ -114,40 +101,12 @@ async function loadMainCarouselImages() {
     updateCarousel();
     initMainCarouselDrag();
     
-    // Auto-avance del carrusel solo cuando esté visible
-    let carouselInterval = null;
-    
-    const startCarouselAutoplay = () => {
-        if (!carouselInterval) {
-            carouselInterval = setInterval(function() {
-                currentSlide = (currentSlide + 1) % totalSlides;
-                updateCarousel();
-            }, 5000);
-        }
-    };
-    
-    const stopCarouselAutoplay = () => {
-        if (carouselInterval) {
-            clearInterval(carouselInterval);
-            carouselInterval = null;
-        }
-    };
-    
-    // Intersection Observer para pausar cuando no esté visible
-    const carouselObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                startCarouselAutoplay();
-            } else {
-                stopCarouselAutoplay();
-            }
-        });
-    }, { threshold: 0.1 });
-    
-    if (carouselContainer) {
-        carouselObserver.observe(carouselContainer);
-    }
-}
+    // Auto-avance del carrusel cada 5 segundos
+    setInterval(function() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        updateCarousel();
+    }, 5000);
+//
 
 function updateCarousel() {
     if (totalSlides === 0) return;
@@ -525,9 +484,9 @@ function showNoImagesPlaceholder(carouselName, reason = 'Sin imágenes disponibl
         reason = 'Sin foto';
     }
     placeholder.innerHTML = `
-        <div style="font-size:2.5rem; opacity:0.7;">${icon}</div>
-        <div style="font-weight:600; text-align:center;">${reason}</div>
-        ${subtitle ? `<div style=\"font-size:0.8rem; text-align:center; opacity:0.8; line-height:1.4;\">${subtitle}</div>` : ''}
+        <div style=\"font-size:2.5rem; opacity:0.7;\">${icon}</div>
+        <div style=\"font-weight:600; text-align:center;\">${reason}</div>
+        ${subtitle ? `<div style=\\\"font-size:0.8rem; text-align:center; opacity:0.8; line-height:1.4;\\\">${subtitle}</div>` : ''}
     `;
     
     container.appendChild(placeholder);
@@ -543,7 +502,7 @@ function showNoImagesPlaceholder(carouselName, reason = 'Sin imágenes disponibl
 function loadProjectCarouselFromFolder(folderPath, carouselName) {
     console.log('Iniciando carga de imágenes para:', carouselName, 'en carpeta:', folderPath);
     const container = document.getElementById(`carousel-container-${carouselName}`);
-    const dotsContainer = document.querySelector(`.carousel-dots[data-carousel="${carouselName}"]`);
+    const dotsContainer = document.querySelector(`.carousel-dots[data-carousel=\"${carouselName}\"]`);
     
     if (!container) {
         console.error('No se encontró el contenedor del carrusel:', `carousel-container-${carouselName}`);
@@ -688,7 +647,7 @@ function initProjectCarousels() {
 
 // Funcionalidad de arrastrar carruseles con mouse
 function initCarouselDragFunctionality() {
-    document.querySelectorAll('[id^="carousel-container-"]').forEach(container => {
+    document.querySelectorAll('[id^=\"carousel-container-\"]').forEach(container => {
         const carouselName = container.id.replace('carousel-container-', '');
         initSingleCarouselDrag(carouselName);
     });
@@ -717,36 +676,36 @@ function initSingleCarouselDrag(carouselName) {
     container.style.cursor = 'grab';
     
     // Configurar imágenes para que no se arrastren como archivos
-    container.querySelectorAll('img').forEach(img => {
-        img.draggable = false;
-        img.style.userSelect = 'none';
-        img.style.webkitUserSelect = 'none';
-    
-        // Variables para detectar click vs drag en cada imagen
-        let imgStartX = 0;
-        let imgStartY = 0;
-        let imgClickTime = 0;
-    
-        // Click para abrir modal - solo si no hay movimiento
-        img.addEventListener('mousedown', function(e) {
-            imgStartX = e.clientX;
-            imgStartY = e.clientY;
-            imgClickTime = Date.now();
-        });
-    
-        img.addEventListener('mouseup', function(e) {
-            const deltaX = Math.abs(e.clientX - imgStartX);
-            const deltaY = Math.abs(e.clientY - imgStartY);
-            const clickDuration = Date.now() - imgClickTime;
+        container.querySelectorAll('img').forEach(img => {
+            img.draggable = false;
+            img.style.userSelect = 'none';
+            img.style.webkitUserSelect = 'none';
         
-            // Solo abrir si no hubo movimiento Y fue un click rápido
-            if (deltaX < 2 && deltaY < 2 && clickDuration < 300) {
-                e.preventDefault();
-                e.stopPropagation();
-                openImageModal(this.src);
-            }
+            // Variables para detectar click vs drag en cada imagen
+            let imgStartX = 0;
+            let imgStartY = 0;
+            let imgClickTime = 0;
+        
+            // Click para abrir modal - solo si no hay movimiento
+            img.addEventListener('mousedown', function(e) {
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+                imgClickTime = Date.now();
+            });
+        
+            img.addEventListener('mouseup', function(e) {
+                const deltaX = Math.abs(e.clientX - imgStartX);
+                const deltaY = Math.abs(e.clientY - imgStartY);
+                const clickDuration = Date.now() - imgClickTime;
+            
+                // Solo abrir si no hubo movimiento Y fue un click rápido
+                if (deltaX < 2 && deltaY < 2 && clickDuration < 300) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openImageModal(this.src);
+                }
+            });
         });
-    });
 
     // Limpiar event listeners previos
     container.removeEventListener('mousedown', container._startDrag);
@@ -869,7 +828,7 @@ function initSingleCarouselDrag(carouselName) {
 
 function updateProjectCarousel(carouselName, currentSlide, totalSlides) {
     const container = document.getElementById(`carousel-container-${carouselName}`);
-    const dots = document.querySelectorAll(`.carousel-dots[data-carousel="${carouselName}"] .dot`);
+    const dots = document.querySelectorAll(`.carousel-dots[data-carousel=\"${carouselName}\"] .dot`);
 
     // Actualizar posición
     const translateX = -currentSlide * 100;
@@ -909,48 +868,6 @@ function loadProjects() {
 }
 
 // ========================================
-// NAVEGACIÓN ACTIVA
-// ========================================
-function initActiveNavigation() {
-    const navLinks = document.querySelectorAll('.nav .btn[href^="#"]');
-    const sections = document.querySelectorAll('section[id]');
-    const logoHome = document.getElementById('logo-home');
-    
-    function updateActiveNav() {
-        let currentSection = '';
-        
-        sections.forEach(section => {
-            const rect = section.getBoundingClientRect();
-            if (rect.top <= 100 && rect.bottom >= 100) {
-                currentSection = section.id;
-            }
-        });
-        
-        // Actualizar links
-        navLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href === `#${currentSection}`) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
-        
-        // Logo home activo cuando estamos arriba
-        if (logoHome) {
-            if (currentSection === '' || currentSection === 'hero') {
-                logoHome.classList.add('active');
-            } else {
-                logoHome.classList.remove('active');
-            }
-        }
-    }
-    
-    window.addEventListener('scroll', updateActiveNav, { passive: true });
-    updateActiveNav();
-}
-
-// ========================================
 // INICIALIZACIÓN
 // ========================================
 document.addEventListener('DOMContentLoaded', async function() {
@@ -971,18 +888,41 @@ document.addEventListener('DOMContentLoaded', async function() {
         initMainCarouselDrag();
     }, 500);
     
-    // Toggle menú móvil
-    const toggle = document.getElementById('nav-toggle');
-    const actions = document.getElementById('nav-actions');
-    if (toggle && actions) {
-        toggle.addEventListener('click', () => {
-            const isOpen = actions.classList.toggle('open');
-            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-        // Cerrar al hacer click en un link
-        actions.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-            actions.classList.remove('open');
-            toggle.setAttribute('aria-expanded', 'false');
-        }));
-    }
+        // Toggle menú móvil
+        const toggle = document.getElementById('nav-toggle');
+        const actions = document.getElementById('nav-actions');
+        if (toggle && actions) {
+            toggle.addEventListener('click', () => {
+                const isOpen = actions.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            // Cerrar al hacer click en un link
+            actions.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+                actions.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }));
+        }
 });
+
+// ========================================
+// NAVEGACIÓN ACTIVA (esta copia se encuentra rota a propósito para referencia)
+// ========================================
+function initActiveNavigation() {
+    const navLinks = document.querySelectorAll('.nav .btn[href^="#"]');
+    const sections = document.querySelectorAll('section[id]');
+    const logoHome = document.getElementById('logo-home');
+    
+    function updateActiveNav() {
+        let currentSection = '';
+        
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 100 && rect.bottom >= 100) {
+                currentSection = section.id;
+            }
+        });
+        // A partir de aquí, en la versión rota original, se mezclaba código del visor de skins
+        // por lo que se mantienen los errores de sintaxis si se utiliza este archivo.
+    }
+}
+}

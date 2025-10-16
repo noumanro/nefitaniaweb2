@@ -27,7 +27,7 @@
       </button>
       <div class="actions" id="nav-actions">
         <a class="btn" href="#quienes">Quiénes somos</a>
-        <a class="btn" href="#miembros">Miembros</a>
+        <a class="btn" href="miembros.html">Miembros</a>
         <a class="btn" href="#reglas">Reglas</a>
         <a class="btn" href="#discord">Discord</a>
         <a class="btn" href="#servidor">Servidor</a>
@@ -116,33 +116,23 @@
 
     <!-- MIEMBROS -->
     <section id="miembros">
-      <div class="card">
+      <div class="card" style="text-align:center;">
         <h2>👥 Miembros del clan</h2>
-        <p style="text-align:center; color:var(--muted); margin-bottom:32px;">
-          Conoce a los miembros de Nefitania. Haz clic y arrastra para rotar las skins en 3D.
+        <p style="color:var(--muted); margin-bottom:32px; font-size:1.1rem;">
+          Conoce a los miembros de Nefitania con sus skins 3D de Minecraft.
         </p>
         
-        <div id="skins-carousel" class="skins-carousel">
-          <button id="prev-skin" class="carousel-btn carousel-prev">‹</button>
-          <div id="skins-container" class="skins-container">
-            <!-- Las skins se cargarán dinámicamente aquí -->
-            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
-              <div style="font-size:3rem; margin-bottom:16px;">⏳</div>
-              <p style="color:var(--muted);">Cargando skins...</p>
-            </div>
-          </div>
-          <button id="next-skin" class="carousel-btn carousel-next">›</button>
+        <div style="margin:40px 0;">
+          <img src="https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/logo.png" alt="Nefitania" style="max-width:200px; opacity:0.8; margin-bottom:24px;">
         </div>
         
-        <div id="skin-info" style="text-align:center; margin-top:24px; min-height:60px;">
-          <!-- Información del miembro actual -->
-        </div>
-
-        <div style="margin-top: 24px; padding: 16px; background: rgba(255,106,0,0.1); border-left: 4px solid var(--accent); border-radius: 8px; text-align:center;">
-          <p style="margin: 0; color: var(--muted); font-size:0.9rem;">
-            💡 <strong>Tip:</strong> Usa las flechas o arrastra para navegar entre los miembros
-          </p>
-        </div>
+        <a href="miembros.html" class="btn primary" style="display:inline-block; padding:16px 32px; font-size:1.1rem; text-decoration:none;">
+          Ver galería de miembros en 3D
+        </a>
+        
+        <p style="color:var(--muted); margin-top:24px; font-size:0.9rem;">
+          Página optimizada con visualización 3D interactiva
+        </p>
       </div>
     </section>
 
@@ -362,39 +352,6 @@
   </footer>
 
   <!-- Librería para renderizar skins de Minecraft en 3D: intenta local y luego CDNs -->
-  <script>
-    (function() {
-      function inject(src, onload, onerror) {
-        var s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.onload = onload;
-        s.onerror = onerror;
-        document.head.appendChild(s);
-      }
-      var sources = [
-        'vendor/skinview3d.min.js',
-        'https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js',
-        'https://unpkg.com/skinview3d@3/bundles/skinview3d.min.js'
-      ];
-      function tryNext() {
-        var next = sources.shift();
-        if (!next) {
-          console.warn('[skinview3d] No se pudo cargar desde ninguna fuente');
-          return;
-        }
-        inject(next, function(){
-          console.log('[skinview3d] cargado desde', next);
-        }, function(){
-          console.warn('[skinview3d] fallo al cargar desde', next);
-          tryNext();
-        });
-      }
-      if (!window.skinview3d) {
-        tryNext();
-      }
-    })();
-  </script>
   <script src="main.js"></script>
 </body>
 </html>

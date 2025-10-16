@@ -77,23 +77,10 @@ async function loadMainCarouselImages() {
     carouselContainer.innerHTML = '';
     dotsContainer.innerHTML = '';
     
-    // Agregar imágenes al carrusel con lazy loading
+    // Agregar imágenes al carrusel
     validImages.forEach((url, index) => {
         const img = document.createElement('img');
-        // Solo cargar las primeras 2 imágenes inmediatamente
-        if (index < 2) {
-            img.src = url;
-        } else {
-            img.dataset.src = url;
-            img.loading = 'lazy';
-            // Cargar cuando sea necesario
-            setTimeout(() => {
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    delete img.dataset.src;
-                }
-            }, 1000 + index * 200);
-        }
+        img.src = url;
         img.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:pointer;';
         img.onclick = function() { openImageModal(this.src); };
         carouselContainer.appendChild(img);
@@ -114,40 +101,12 @@ async function loadMainCarouselImages() {
     updateCarousel();
     initMainCarouselDrag();
     
-    // Auto-avance del carrusel solo cuando esté visible
-    let carouselInterval = null;
-    
-    const startCarouselAutoplay = () => {
-        if (!carouselInterval) {
-            carouselInterval = setInterval(function() {
-                currentSlide = (currentSlide + 1) % totalSlides;
-                updateCarousel();
-            }, 5000);
-        }
-    };
-    
-    const stopCarouselAutoplay = () => {
-        if (carouselInterval) {
-            clearInterval(carouselInterval);
-            carouselInterval = null;
-        }
-    };
-    
-    // Intersection Observer para pausar cuando no esté visible
-    const carouselObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                startCarouselAutoplay();
-            } else {
-                stopCarouselAutoplay();
-            }
-        });
-    }, { threshold: 0.1 });
-    
-    if (carouselContainer) {
-        carouselObserver.observe(carouselContainer);
-    }
-}
+    // Auto-avance del carrusel cada 5 segundos
+    setInterval(function() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        updateCarousel();
+    }, 5000);
+//
 
 function updateCarousel() {
     if (totalSlides === 0) return;
@@ -717,36 +676,36 @@ function initSingleCarouselDrag(carouselName) {
     container.style.cursor = 'grab';
     
     // Configurar imágenes para que no se arrastren como archivos
-    container.querySelectorAll('img').forEach(img => {
-        img.draggable = false;
-        img.style.userSelect = 'none';
-        img.style.webkitUserSelect = 'none';
-    
-        // Variables para detectar click vs drag en cada imagen
-        let imgStartX = 0;
-        let imgStartY = 0;
-        let imgClickTime = 0;
-    
-        // Click para abrir modal - solo si no hay movimiento
-        img.addEventListener('mousedown', function(e) {
-            imgStartX = e.clientX;
-            imgStartY = e.clientY;
-            imgClickTime = Date.now();
-        });
-    
-        img.addEventListener('mouseup', function(e) {
-            const deltaX = Math.abs(e.clientX - imgStartX);
-            const deltaY = Math.abs(e.clientY - imgStartY);
-            const clickDuration = Date.now() - imgClickTime;
+        container.querySelectorAll('img').forEach(img => {
+            img.draggable = false;
+            img.style.userSelect = 'none';
+            img.style.webkitUserSelect = 'none';
         
-            // Solo abrir si no hubo movimiento Y fue un click rápido
-            if (deltaX < 2 && deltaY < 2 && clickDuration < 300) {
-                e.preventDefault();
-                e.stopPropagation();
-                openImageModal(this.src);
-            }
+            // Variables para detectar click vs drag en cada imagen
+            let imgStartX = 0;
+            let imgStartY = 0;
+            let imgClickTime = 0;
+        
+            // Click para abrir modal - solo si no hay movimiento
+            img.addEventListener('mousedown', function(e) {
+                imgStartX = e.clientX;
+                imgStartY = e.clientY;
+                imgClickTime = Date.now();
+            });
+        
+            img.addEventListener('mouseup', function(e) {
+                const deltaX = Math.abs(e.clientX - imgStartX);
+                const deltaY = Math.abs(e.clientY - imgStartY);
+                const clickDuration = Date.now() - imgClickTime;
+            
+                // Solo abrir si no hubo movimiento Y fue un click rápido
+                if (deltaX < 2 && deltaY < 2 && clickDuration < 300) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openImageModal(this.src);
+                }
+            });
         });
-    });
 
     // Limpiar event listeners previos
     container.removeEventListener('mousedown', container._startDrag);
@@ -909,48 +868,6 @@ function loadProjects() {
 }
 
 // ========================================
-// NAVEGACIÓN ACTIVA
-// ========================================
-function initActiveNavigation() {
-    const navLinks = document.querySelectorAll('.nav .btn[href^="#"]');
-    const sections = document.querySelectorAll('section[id]');
-    const logoHome = document.getElementById('logo-home');
-    
-    function updateActiveNav() {
-        let currentSection = '';
-        
-        sections.forEach(section => {
-            const rect = section.getBoundingClientRect();
-            if (rect.top <= 100 && rect.bottom >= 100) {
-                currentSection = section.id;
-            }
-        });
-        
-        // Actualizar links
-        navLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href === `#${currentSection}`) {
-                link.classList.add('active');
-            } else {
-                link.classList.remove('active');
-            }
-        });
-        
-        // Logo home activo cuando estamos arriba
-        if (logoHome) {
-            if (currentSection === '' || currentSection === 'hero') {
-                logoHome.classList.add('active');
-            } else {
-                logoHome.classList.remove('active');
-            }
-        }
-    }
-    
-    window.addEventListener('scroll', updateActiveNav, { passive: true });
-    updateActiveNav();
-}
-
-// ========================================
 // INICIALIZACIÓN
 // ========================================
 document.addEventListener('DOMContentLoaded', async function() {
@@ -971,18 +888,460 @@ document.addEventListener('DOMContentLoaded', async function() {
         initMainCarouselDrag();
     }, 500);
     
-    // Toggle menú móvil
-    const toggle = document.getElementById('nav-toggle');
-    const actions = document.getElementById('nav-actions');
-    if (toggle && actions) {
-        toggle.addEventListener('click', () => {
-            const isOpen = actions.classList.toggle('open');
-            toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-        // Cerrar al hacer click en un link
-        actions.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
-            actions.classList.remove('open');
-            toggle.setAttribute('aria-expanded', 'false');
-        }));
-    }
+        // Toggle menú móvil
+        const toggle = document.getElementById('nav-toggle');
+        const actions = document.getElementById('nav-actions');
+        if (toggle && actions) {
+            toggle.addEventListener('click', () => {
+                const isOpen = actions.classList.toggle('open');
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            // Cerrar al hacer click en un link
+            actions.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+                actions.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+            }));
+        }
 });
+
+// ========================================
+// NAVEGACIÓN ACTIVA
+// ========================================
+function initActiveNavigation() {
+    const navLinks = document.querySelectorAll('.nav .btn[href^="#"]');
+    const sections = document.querySelectorAll('section[id]');
+    const logoHome = document.getElementById('logo-home');
+    
+    function updateActiveNav() {
+        let currentSection = '';
+        
+        sections.forEach(section => {
+            const rect = section.getBoundingClientRect();
+            if (rect.top <= 100 && rect.bottom >= 100) {
+                currentSection = section.id;
+            }
+        });
+            const wrapper = document.createElement('div');
+            wrapper.className = 'skin-viewer-wrapper';
+            // Nombre arriba
+            const nameEl = document.createElement('div');
+            nameEl.className = 'skin-member-name';
+            nameEl.textContent = skin.name || `Miembro #${skin.number}`;
+            wrapper.appendChild(nameEl);
+            // Visor 3D
+            const viewerDiv = document.createElement('div');
+            viewerDiv.className = 'skin-viewer';
+            viewerDiv.id = `skin-viewer-${index}`;
+            wrapper.appendChild(viewerDiv);
+            container.appendChild(wrapper);
+
+            // Crear el visor 3D
+            const skinViewer = new skinview3d.SkinViewer({
+                canvas: document.createElement('canvas'),
+                width: 420,
+                height: 420,
+                skin: skin.url
+            });
+
+            // Configurar el visor
+            skinViewer.controls.enableRotate = true;
+            skinViewer.controls.enableZoom = false;
+            skinViewer.controls.enablePan = false;
+
+            // Animaciones
+            skinViewer.animation = new skinview3d.IdleAnimation();
+            skinViewer.animation.speed = 0.5;
+
+            // Configurar cámara
+            skinViewer.camera.position.set(0, 18, 35);
+
+            // Auto-rotación suave
+            let autoRotate = true;
+            skinViewer.controls.addEventListener('start', () => autoRotate = false);
+            skinViewer.controls.addEventListener('end', () => autoRotate = true);
+
+            function animate() {
+                if (autoRotate) {
+                    skinViewer.playerObject.rotation.y += 0.005;
+                }
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            // Insertar el canvas
+            viewerDiv.appendChild(skinViewer.canvas);
+
+            // Guardar referencia
+            skinViewers.push({
+                viewer: skinViewer,
+                wrapper: wrapper,
+                skinNumber: skin.number,
+                name: skin.name
+            });
+        });
+    // Carga dinámica de la librería skinview3d con fallback de CDN
+    async function ensureSkinview3dLoaded() {
+        if (typeof window.skinview3d !== 'undefined') return true;
+        function inject(src) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.async = true;
+                s.onload = () => resolve(true);
+                s.onerror = () => reject(new Error('Failed to load ' + src));
+                document.head.appendChild(s);
+            });
+        }
+        try {
+            await inject('https://cdn.jsdelivr.net/npm/skinview3d@3/bundles/skinview3d.min.js');
+            return typeof window.skinview3d !== 'undefined';
+        } catch (_) {
+            try {
+                await inject('https://unpkg.com/skinview3d@3/bundles/skinview3d.min.js');
+                return typeof window.skinview3d !== 'undefined';
+            } catch (__) {
+                return false;
+            }
+        }
+    }
+
+async function loadMinecraftSkins() {
+    console.log('🚀 loadMinecraftSkins() iniciada');
+    // Detectar si estamos en local o producción
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const baseUrl = isLocal 
+        ? 'image/skin' 
+        : 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/skin';
+    
+    const container = document.getElementById('skins-container');
+    const skinInfo = document.getElementById('skin-info');
+    console.log('📦 Contenedor de skins:', container);
+    
+    // Verificar que el contenedor exista
+    if (!container) {
+        console.warn('Contenedor de skins no encontrado');
+        return;
+    }
+    // Intentar cargar manifest de nombres (skins.json)
+    let manifestSkins = null;
+    try {
+        const res = await fetch(`${baseUrl}/skins.json`, { cache: 'no-store' });
+        if (res.ok) {
+            const data = await res.json();
+            console.log('skins.json cargado:', data);
+            if (Array.isArray(data)) {
+                manifestSkins = data
+                    .filter(e => e && typeof e.file === 'string' && e.file.toLowerCase().endsWith('.png') && !String(e.file).includes('/'))
+                    .map((e, i) => {
+                        const file = String(e.file).trim();
+                        const fileEncoded = encodeURIComponent(file);
+                        const url = `${baseUrl}/${fileEncoded}`;
+                        const basename = file.replace(/\.[^.]+$/, '');
+                        const inferred = basename.replace(/[\-_]+/g, ' ').trim();
+                        const name = typeof e.name === 'string' && e.name.trim() ? e.name.trim() : (inferred || `Miembro ${i + 1}`);
+                        // Intentar obtener número desde el nombre del archivo
+                        const numMatch = basename.match(/(\d+)/);
+                        const number = numMatch ? parseInt(numMatch[1], 10) : (i + 1);
+                        return { url, number, name, file };
+                    });
+                console.log('manifestSkins procesado:', manifestSkins);
+                if (manifestSkins.length === 0) manifestSkins = null;
+            }
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar skins.json:', e);
+    }
+
+    // Asegurar que la librería esté cargada (con fallback)
+    const ok = await ensureSkinview3dLoaded();
+    if (!ok || typeof window.skinview3d === 'undefined') {
+        console.error('No se pudo cargar skinview3d; usando galería estática');
+        // Fallback: mostrar galería estática con <img> usando manifest si existe
+        let items = [];
+        if (manifestSkins) {
+            items = manifestSkins.map(s => ({ url: s.url, name: s.name }));
+        } else {
+            // Si estamos en local, intentar listar el directorio para descubrir .png
+            if (isLocal) {
+                try {
+                    const idxRes = await fetch(`${baseUrl}/`, { cache: 'no-store' });
+                    if (idxRes.ok) {
+                        const html = await idxRes.text();
+                        const matches = [...html.matchAll(/href=\"([^\"]+\.png)\"/gi)];
+                        const files = matches.map(m => decodeURIComponent(m[1])).filter(f => !f.startsWith('?'));
+                        const unique = Array.from(new Set(files));
+                        items = unique.map(f => {
+                            const file = f.split('/').pop();
+                            const url = `${baseUrl}/${encodeURIComponent(file)}`;
+                            const base = file.replace(/\.[^.]+$/, '');
+                            const name = base.replace(/[\-_]+/g, ' ').trim();
+                            return { url, name: name || base };
+                        });
+                    }
+                } catch (e) {
+                    console.warn('No se pudo listar el directorio de skins en local:', e);
+                }
+            }
+            // Si no hay manifest ni listado local, usar numeración 1..30
+            if (items.length === 0) {
+                const maxSkins = 30;
+                const headChecks = [];
+                for (let i = 1; i <= maxSkins; i++) {
+                    const url = `${baseUrl}/${i}.png`;
+                    headChecks.push(fetch(url, { method: 'HEAD', cache: 'no-store' })
+                        .then(res => res.ok ? { url, name: `Miembro ${i}` } : null)
+                        .catch(() => null));
+                }
+                items = (await Promise.all(headChecks)).filter(Boolean);
+            }
+        }
+
+        if (items.length === 0) {
+            container.innerHTML = `
+                <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+                    <div style="font-size:3rem; margin-bottom:16px;">📦</div>
+                    <p style="color:var(--muted);">No se encontraron skins de miembros</p>
+                    <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">Agrega archivos .png numerados (1.png, 2.png, etc.) a la carpeta <code>/image/skin/</code></p>
+                </div>
+            `;
+            return;
+        }
+        // Render estático: múltiples elementos con scroll-snap y sin botones
+        container.innerHTML = '';
+        const wrappers = items.map((it, index) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'skin-viewer-wrapper';
+            // Nombre arriba
+            const nameEl = document.createElement('div');
+            nameEl.className = 'skin-member-name';
+            nameEl.textContent = it.name || `Miembro #${index+1}`;
+            wrap.appendChild(nameEl);
+            // Imagen
+            const imgEl = document.createElement('img');
+            imgEl.alt = it.name || `Miembro ${index+1}`;
+            imgEl.src = it.url;
+            wrap.appendChild(imgEl);
+            container.appendChild(wrap);
+            return wrap;
+        });
+
+        const info = document.getElementById('skin-info');
+        function updateInfoStatic(idx) {
+            if (info) {
+                info.innerHTML = `
+                    <p>Skin ${idx + 1} de ${items.length} <br><span style=\"font-size:0.85rem; opacity:0.7;\">Visor 3D no disponible; muestra estática</span></p>
+                `;
+            }
+        }
+        updateInfoStatic(0);
+
+        // Actualizar info según scroll
+        const containerEl = container;
+        containerEl.addEventListener('scroll', () => {
+            const center = containerEl.scrollLeft + containerEl.clientWidth / 2;
+            let bestIdx = 0;
+            let bestDist = Infinity;
+            wrappers.forEach((wrap, idx) => {
+                const rect = wrap.getBoundingClientRect();
+                const wrapperCenter = rect.left + rect.width / 2 + containerEl.scrollLeft - containerEl.getBoundingClientRect().left;
+                const dist = Math.abs(wrapperCenter - center);
+                if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+            });
+            updateInfoStatic(bestIdx);
+        }, { passive: true });
+
+        // Centrar el primer elemento suavemente
+        try { setTimeout(() => wrappers[0]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 50); } catch {}
+        return;
+    }
+    
+    // Intentar manifest primero; si no, descubrimiento local (localhost) o numeración
+    let validSkins = [];
+    if (manifestSkins) {
+        console.log('Usando manifestSkins:', manifestSkins.length, 'skins');
+        validSkins = manifestSkins;
+    } else if (isLocal) {
+        try {
+            const idxRes = await fetch(`${baseUrl}/`, { cache: 'no-store' });
+            if (idxRes.ok) {
+                const html = await idxRes.text();
+                const matches = [...html.matchAll(/href=\"([^\"]+\.png)\"/gi)];
+                const files = matches.map(m => decodeURIComponent(m[1])).filter(f => !f.startsWith('?'));
+                const unique = Array.from(new Set(files));
+                validSkins = unique.map((f, i) => {
+                    const file = f.split('/').pop();
+                    const url = `${baseUrl}/${encodeURIComponent(file)}`;
+                    const base = file.replace(/\.[^.]+$/, '');
+                    const numMatch = base.match(/(\d+)/);
+                    const number = numMatch ? parseInt(numMatch[1], 10) : (i + 1);
+                    const name = base.replace(/[\-_]+/g, ' ').trim() || `Miembro ${number}`;
+                    return { url, number, name, file };
+                });
+            }
+        } catch (e) {
+            console.warn('No se pudo listar el directorio de skins en 3D/local:', e);
+        }
+    }
+
+    if (!validSkins || validSkins.length === 0) {
+        const maxSkins = 30;
+        const promises = [];
+        for (let i = 1; i <= maxSkins; i++) {
+            const skinUrl = `${baseUrl}/${i}.png`;
+            promises.push(
+                fetch(skinUrl, { method: 'HEAD', cache: 'no-store' })
+                    .then(res => res.ok ? { url: skinUrl, number: i, name: `Miembro ${i}`, file: `${i}.png` } : null)
+                    .catch(() => null)
+            );
+        }
+        const results = await Promise.all(promises);
+        validSkins = results.filter(Boolean);
+    }
+    
+    if (validSkins.length === 0) {
+        container.innerHTML = `
+            <div class="skin-loading" style="text-align:center; padding:60px 20px;">
+                <div style="font-size:3rem; margin-bottom:16px;">📦</div>
+                <p style="color:var(--muted);">No se encontraron skins de miembros</p>
+                <p style="color:var(--muted); font-size:0.9rem; margin-top:12px;">
+                    Agrega archivos .png numerados (1.png, 2.png, etc.) a la carpeta <code>/image/skin/</code>
+                </p>
+            </div>
+        `;
+        return;
+    }
+    
+    console.log('🎮 Creando visores 3D para', validSkins.length, 'skins');
+    skinsData = validSkins;
+    container.innerHTML = '';
+    
+    // Crear visualizadores de skins
+    validSkins.forEach((skin, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'skin-viewer-wrapper';
+        // Nombre arriba
+        const nameEl = document.createElement('div');
+        nameEl.className = 'skin-member-name';
+        nameEl.textContent = skin.name || `Miembro #${skin.number}`;
+        wrapper.appendChild(nameEl);
+        // Visor 3D
+        const viewerDiv = document.createElement('div');
+        viewerDiv.className = 'skin-viewer';
+        viewerDiv.id = `skin-viewer-${index}`;
+        wrapper.appendChild(viewerDiv);
+        container.appendChild(wrapper);
+
+        // Crear el visor 3D
+        const skinViewer = new skinview3d.SkinViewer({
+            canvas: document.createElement('canvas'),
+            width: 420,
+            height: 420,
+            skin: skin.url
+        });
+
+        // Configurar el visor
+        skinViewer.controls.enableRotate = true;
+        skinViewer.controls.enableZoom = false;
+        skinViewer.controls.enablePan = false;
+
+        // Animaciones
+        skinViewer.animation = new skinview3d.IdleAnimation();
+        skinViewer.animation.speed = 0.5;
+
+        // Configurar cámara
+        skinViewer.camera.position.set(0, 18, 35);
+
+        // Auto-rotación suave
+        let autoRotate = true;
+        skinViewer.controls.addEventListener('start', () => autoRotate = false);
+        skinViewer.controls.addEventListener('end', () => autoRotate = true);
+
+        function animate() {
+            if (autoRotate) {
+                skinViewer.playerObject.rotation.y += 0.005;
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Insertar el canvas
+        viewerDiv.appendChild(skinViewer.canvas);
+
+        // Guardar referencia
+        skinViewers.push({
+            viewer: skinViewer,
+            wrapper: wrapper,
+            skinNumber: skin.number,
+            name: skin.name
+        });
+    });
+    
+    // Mostrar información del primer miembro
+    updateSkinInfo();
+    
+    // Centrar el primer elemento en el contenedor usando scroll-snap
+    try {
+        const active = skinViewers[0]?.wrapper;
+        if (active) {
+            setTimeout(() => active.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }), 50);
+        }
+    } catch {}
+
+    // Rehabilitar botones para desplazar por tarjeta
+    const containerEl = document.getElementById('skins-container');
+    const prevBtn = document.getElementById('prev-skin');
+    const nextBtn = document.getElementById('next-skin');
+    function scrollByCard(dir){
+        const card = skinViewers[0]?.wrapper;
+        const step = card ? (card.getBoundingClientRect().width + 8) : (containerEl.clientWidth * 0.6);
+        containerEl.scrollBy({ left: dir * step, behavior: 'smooth' });
+    }
+    if (prevBtn) prevBtn.onclick = () => scrollByCard(-1);
+    if (nextBtn) nextBtn.onclick = () => scrollByCard(1);
+}
+
+// Actualizar el índice actual basándonos en el elemento más centrado al hacer scroll
+document.getElementById('skins-container').addEventListener('scroll', () => {
+    if (skinViewers.length === 0) return;
+    const container = document.getElementById('skins-container');
+    const center = container.scrollLeft + container.clientWidth / 2;
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    skinViewers.forEach((sv, idx) => {
+        const rect = sv.wrapper.getBoundingClientRect();
+        const wrapperCenter = rect.left + rect.width / 2 + container.scrollLeft - container.getBoundingClientRect().left;
+        const dist = Math.abs(wrapperCenter - center);
+        if (dist < bestDist) { bestDist = dist; bestIdx = idx; }
+    });
+    if (bestIdx !== currentSkinIndex) {
+        currentSkinIndex = bestIdx;
+        updateSkinInfo();
+    }
+}, { passive: true });
+
+function updateSkinInfo() {
+    const skinInfo = document.getElementById('skin-info');
+    if (!skinInfo || skinViewers.length === 0) return;
+    
+    const currentSkin = skinViewers[currentSkinIndex];
+    
+    skinInfo.innerHTML = `
+        <p>
+            Skin ${currentSkinIndex + 1} de ${skinViewers.length}
+            <br>
+            <span style="font-size:0.85rem; opacity:0.7;">Haz clic y arrastra para rotar • Usa las flechas para navegar</span>
+        </p>
+    `;
+}
+
+// Cargar skins cuando el DOM esté listo
+console.log('⚡ Script de skins cargado, preparando inicialización...');
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('✅ DOM listo, llamando loadMinecraftSkins');
+        loadMinecraftSkins();
+    });
+} else {
+    console.log('✅ DOM ya estaba listo, llamando loadMinecraftSkins inmediatamente');
+    loadMinecraftSkins();
+}
