@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Top Donadores — Nefitania</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="index.html" class="brand">NEFITANIA</a>
+      <div class="actions">
+        <a class="btn" href="index.html">Inicio</a>
+        <a class="btn" href="miembros.html">Miembros</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="card" style="text-align:center;">
+      <h2>🏆 Top Donadores</h2>
+      <p style="color:var(--muted); margin-top:-4px">Cargando datos desde Google Sheets...</p>
+      <div id="donors" class="grid" style="margin-top:20px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px;"></div>
+    </section>
+  </main>
+
+  <script src="sheet.js"></script>
+  <script src="top.js"></script>
+</body>
+</html>

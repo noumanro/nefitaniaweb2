@@ -48,7 +48,7 @@
 {
   title: La comarca
   state: proceso 
-  text: casitas de hobby hechas por el clan
+  text: casitas de hobbit hechas por el clan
   folder_location: la comarca
 }
 

@@ -292,6 +292,25 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ========================================
+// GOOGLE SHEETS LIVE FETCH (GENÉRICO)
+// ========================================
+(async function initGoogleSheetLive() {
+    try {
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1P4B6NA_-q9XMxfhmcas9I5xbGFGieyMPUFntimALbzo/edit?usp=sharing';
+        if (window.GoogleSheetHelper) {
+            const rows = await window.GoogleSheetHelper.fetchSheet({ url: SHEET_URL, prefer: 'auto' });
+            // Exponer datos para otras partes de la web si se requiere
+            window.__SHEET_ROWS__ = rows;
+            console.log('📄 Google Sheet rows:', rows);
+        } else {
+            console.warn('GoogleSheetHelper no cargado');
+        }
+    } catch (err) {
+        console.warn('No se pudo consultar Google Sheets:', err);
+    }
+})();
+
+// ========================================
 // PROYECTOS DINÁMICOS (SIN FETCH)
 // ========================================
 const projectCarousels = {};
