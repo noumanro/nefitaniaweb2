@@ -189,11 +189,13 @@ async function loadMinecraftSkins() {
         const wrapper = document.createElement('div');
         wrapper.className = 'skin-item';
         wrapper.dataset.index = index;
+        // Asegurar tamaño uniforme y snap estable
+        wrapper.style.cssText = 'min-width:300px; width:300px; flex:0 0 300px; scroll-snap-align:center; padding:10px;';
         
         // Crear contenedor para la imagen/visor
         const viewerContainer = document.createElement('div');
         viewerContainer.className = 'skin-content';
-        viewerContainer.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center;';
+        viewerContainer.style.cssText = 'width:100%; height:280px; display:flex; align-items:center; justify-content:center;';
         
         // Inicialmente mostrar solo la cabeza renderizada
         const headCanvas = renderSkinHead(skin.url, 300);
@@ -217,7 +219,7 @@ async function loadMinecraftSkins() {
         
         const lastContainer = document.createElement('div');
         lastContainer.className = 'skin-content';
-        lastContainer.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center;';
+        lastContainer.style.cssText = 'width:100%; height:280px; display:flex; align-items:center; justify-content:center;';
         
         const lastHead = renderSkinHead(lastSkin.url, 300);
         lastHead.style.cssText = 'width:80%; height:80%; object-fit:contain; image-rendering:pixelated;';
@@ -235,7 +237,7 @@ async function loadMinecraftSkins() {
         
         const firstContainer = document.createElement('div');
         firstContainer.className = 'skin-content';
-        firstContainer.style.cssText = 'width:100%; height:100%; display:flex; align-items:center; justify-content:center;';
+        firstContainer.style.cssText = 'width:100%; height:280px; display:flex; align-items:center; justify-content:center;';
         
         const firstHead = renderSkinHead(firstSkin.url, 300);
         firstHead.style.cssText = 'width:80%; height:80%; object-fit:contain; image-rendering:pixelated;';
@@ -421,7 +423,7 @@ async function loadMinecraftSkins() {
     let scrollTimeout;
     container.addEventListener('scroll', () => {
         clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(updateCarousel, 150);
+        scrollTimeout = setTimeout(updateCarousel, 120);
     }, { passive: true });
     
     // Habilitar scroll manual

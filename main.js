@@ -32,6 +32,16 @@ document.getElementById('modal-form').onclick = function(e) {
     }
 };
 
+// Evitar scroll de fondo en móviles cuando el modal está abierto
+try {
+    const mf = document.getElementById('modal-form');
+    mf.addEventListener('touchmove', function(e){
+        if (getComputedStyle(mf).display === 'flex') {
+            e.preventDefault();
+        }
+    }, { passive: false });
+} catch {}
+
 // Cerrar modal con tecla Escape
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && document.getElementById('modal-form').style.display === 'flex') {
@@ -51,20 +61,26 @@ const dotsContainer = document.getElementById('carousel-dots');
 // Cargar imágenes dinámicamente de la carpeta nosotros
 async function loadMainCarouselImages() {
     const baseUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/nosotros';
-    const maxImages = 50; // Intentar hasta 50 imágenes
-    const promises = [];
-    
+    const maxImages = 24; // Limitar intentos para evitar rate limit y flicker
+    const validImages = [];
+
+    // Buscar imágenes existentes deteniéndonos tras varios fallos seguidos
+    let missesInRow = 0;
     for (let i = 1; i <= maxImages; i++) {
         const imgUrl = `${baseUrl}/${i}.webp`;
-        promises.push(
-            fetch(imgUrl, { method: 'HEAD', cache: 'no-store' })
-                .then(res => res.ok ? imgUrl : null)
-                .catch(() => null)
-        );
+        try {
+            const res = await fetch(imgUrl, { method: 'HEAD', cache: 'no-store' });
+            if (res.ok) {
+                validImages.push(imgUrl);
+                missesInRow = 0;
+            } else {
+                missesInRow++;
+            }
+        } catch {
+            missesInRow++;
+        }
+        if (missesInRow >= 5 && validImages.length > 0) break; // cortar pronto
     }
-    
-    const results = await Promise.all(promises);
-    const validImages = results.filter(url => url !== null);
     
     if (validImages.length === 0) {
         console.warn('No se encontraron imágenes en la galería de miembros');
@@ -77,24 +93,22 @@ async function loadMainCarouselImages() {
     carouselContainer.innerHTML = '';
     dotsContainer.innerHTML = '';
     
-    // Agregar imágenes al carrusel con lazy loading
+    // Placeholder de carga mientras detectamos imágenes
+    const loadingEl = document.createElement('div');
+    loadingEl.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.2); pointer-events:none;';
+    loadingEl.innerHTML = '<div style="padding:8px 12px; background:rgba(0,0,0,0.6); border-radius:8px; font-size:0.9rem;">Cargando imágenes…</div>';
+    if (carouselContainer.parentElement && !carouselContainer.parentElement.style.position)
+        carouselContainer.parentElement.style.position = 'relative';
+    carouselContainer.parentElement.appendChild(loadingEl);
+
+    // Agregar imágenes al carrusel con lazy/async para evitar parpadeos
     validImages.forEach((url, index) => {
         const img = document.createElement('img');
-        // Solo cargar las primeras 2 imágenes inmediatamente
-        if (index < 2) {
-            img.src = url;
-        } else {
-            img.dataset.src = url;
-            img.loading = 'lazy';
-            // Cargar cuando sea necesario
-            setTimeout(() => {
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    delete img.dataset.src;
-                }
-            }, 1000 + index * 200);
-        }
+        img.src = url;
+        if (index > 0) img.loading = 'lazy';
+        img.decoding = 'async';
         img.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:pointer;';
+        img.onerror = function(){ this.remove(); /* evitar ícono roto */ };
         img.onclick = function() { openImageModal(this.src); };
         carouselContainer.appendChild(img);
         
@@ -109,6 +123,9 @@ async function loadMainCarouselImages() {
         };
         dotsContainer.appendChild(dot);
     });
+
+    // Quitar loading
+    loadingEl.remove();
     
     // Inicializar carrusel
     updateCarousel();
@@ -574,9 +591,22 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         return;
     }
     
+    // Crear overlay de carga sobre el carrusel
+    const shellEl = container.parentElement;
+    let overlayEl = shellEl && shellEl.querySelector('.carousel-loading');
+    if (!overlayEl && shellEl) {
+        overlayEl = document.createElement('div');
+        overlayEl.className = 'carousel-loading';
+        overlayEl.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.2)); color:#fff; font-weight:600; font-size:0.9rem; z-index:5;';
+        overlayEl.innerHTML = '<span style="opacity:.9">Cargando…</span>';
+        shellEl.appendChild(overlayEl);
+    }
+    const removeOverlay = () => { if (overlayEl && overlayEl.parentNode) overlayEl.parentNode.removeChild(overlayEl); };
+
     // Si no hay carpeta definida, mostrar placeholder y salir
     if (!folderPath) {
         console.warn('Proyecto sin folder_location válida. Mostrando placeholder para:', carouselName);
+        removeOverlay();
         showNoImagesPlaceholder(carouselName, 'Sin carpeta configurada');
         return;
     }
@@ -628,6 +658,7 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     function showPlaceholder() {
         console.log('Mostrando placeholder para:', carouselName, 'Imágenes cargadas:', loadedCount);
         if (loadedCount === 0) {
+            removeOverlay();
             showNoImagesPlaceholder(carouselName, 'Sin fotos');
         }
     }
@@ -637,24 +668,30 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         try {
             // Para GitHub raw, intentamos cargar imágenes numeradas (1.webp, 2.webp, etc.)
             const maxImages = 30; // Intentar hasta 30 imágenes
-            const promises = [];
-            
+            // Buscar imágenes de forma secuencial para cortar pronto si no hay más
+            const validImages = [];
+            let missesInRow = 0;
             for (let i = 1; i <= maxImages; i++) {
                 const imgUrl = `${folderPath}/${i}.webp`;
-                promises.push(
-                    fetch(imgUrl, { method: 'HEAD', cache: 'no-store' })
-                        .then(res => res.ok ? imgUrl : null)
-                        .catch(() => null)
-                );
+                try {
+                    const res = await fetch(imgUrl, { method: 'HEAD', cache: 'no-store' });
+                    if (res.ok) {
+                        validImages.push(imgUrl);
+                        missesInRow = 0;
+                    } else {
+                        missesInRow++;
+                    }
+                } catch {
+                    missesInRow++;
+                }
+                if (missesInRow >= 5 && validImages.length > 0) break;
             }
-            
-            const results = await Promise.all(promises);
-            const validImages = results.filter(url => url !== null);
             
             if (validImages.length === 0) throw new Error('No se encontraron imágenes');
             
             validImages.forEach((url, idx) => addImageToCarousel(url, loadedCount++));
             
+            removeOverlay();
             // Inicializar drag si cargamos imágenes
             setTimeout(() => initSingleCarouselDrag(carouselName), 50);
             return true;
