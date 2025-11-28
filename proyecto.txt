@@ -29,39 +29,42 @@
 
 {
   title: Volcan
-  state: en proceso
-  text: 
+  state: terminado
+  text: un volcan para sacrificar a los traidores y para traer devuelta a nuestro señor nefarius
   folder_location: volcan
 }
 {
   title: Portal nether
   state: terminado
-  text: 
+  text: un portal al nether que mas 
   folder_location: portal nether
 }
 {
   title: Orthanc
-  state: en proceso
-  text: 
+  state: terminado
+  text: la torre orthanc o mejor conocida como isengard
   folder_location: orthanc
 }
 {
   title: La comarca
   state: proceso 
-  text: casitas de hobbit hechas por el clan
+  text: casitas de hobbit hechas por el clan donde vivimos 
   folder_location: la comarca
 }
-
+{
+  title: spawn
+  state: terminado 
+  text: el inicio de nuestro clan donde puedes ver todas nuestras construcciones eso si tienes que traer elitras y fuegos artificiales porque es mucho recorrido
+  folder_location: spawn
+}
+{
+  title: minas morgul
+  state: terminada 
+  text: minas morgur donde esta la nueva discoteca
+  folder_location: minas morgul
+}
 {
   title: proximamente
   state: proximamente
   text: 
 }
-
-# El sistema ahora carga automáticamente TODAS las imágenes que encuentre en cada carpeta
-# Simplemente coloca tus fotos en las carpetas correspondientes:
-# - image/ojo sauron/
-# - image/granja Xp/ 
-# - image/la tortuga destartalada/
-# - image/castillo/
-# Sin importar cómo se llamen, el sistema las detectará automáticamente

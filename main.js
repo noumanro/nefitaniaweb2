@@ -1,54 +1,88 @@
 
-    // Rellena año del footer
-document.getElementById('y').textContent = new Date().getFullYear();
+    // Rellena año del footer (comprobando existencia)
+const footerYearEl = document.getElementById('y');
+if (footerYearEl) footerYearEl.textContent = new Date().getFullYear();
 
 // Manejo simple de formulario (solo front)
 function handleSubmit(e){
   e.preventDefault();
-  const ok = document.getElementById('form-ok');
-  ok.style.display = 'block';
+    const ok = document.getElementById('form-ok');
+    if (ok) ok.style.display = 'block';
   e.target.reset();
   return false;
 }
 
 // ========================================
-// MODAL DEL FORMULARIO
+// MODAL DEL FORMULARIO (defensivo)
 // ========================================
-document.getElementById('abrir-form').onclick = function() {
-    document.getElementById('modal-form').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-};
+const abrirFormBtn = document.getElementById('abrir-form');
+const modalForm = document.getElementById('modal-form');
+const cerrarFormBtn = document.getElementById('cerrar-form');
 
-document.getElementById('cerrar-form').onclick = function() {
-    document.getElementById('modal-form').style.display = 'none';
-    document.body.style.overflow = '';
-};
+if (abrirFormBtn && modalForm) {
+    abrirFormBtn.onclick = function() {
+        modalForm.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+}
+
+if (cerrarFormBtn && modalForm) {
+    cerrarFormBtn.onclick = function() {
+        modalForm.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+}
 
 // Cerrar modal al hacer clic en el fondo oscuro
-document.getElementById('modal-form').onclick = function(e) {
-    if (e.target === this) {
-        document.getElementById('modal-form').style.display = 'none';
-        document.body.style.overflow = '';
-    }
-};
-
-// Evitar scroll de fondo en móviles cuando el modal está abierto
-try {
-    const mf = document.getElementById('modal-form');
-    mf.addEventListener('touchmove', function(e){
-        if (getComputedStyle(mf).display === 'flex') {
-            e.preventDefault();
+if (modalForm) {
+    modalForm.onclick = function(e) {
+        if (e.target === this) {
+            modalForm.style.display = 'none';
+            document.body.style.overflow = '';
         }
-    }, { passive: false });
-} catch {}
+    };
 
-// Cerrar modal con tecla Escape
+    // Evitar scroll de fondo en móviles cuando el modal está abierto
+    try {
+        modalForm.addEventListener('touchmove', function(e){
+            if (getComputedStyle(modalForm).display === 'flex') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    } catch (err) {
+        // silently ignore
+    }
+}
+
+// Cerrar modal con tecla Escape (solo si está abierto)
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && document.getElementById('modal-form').style.display === 'flex') {
-        document.getElementById('modal-form').style.display = 'none';
-        document.body.style.overflow = '';
+    if (e.key === 'Escape') {
+        if (modalForm && getComputedStyle(modalForm).display === 'flex') {
+            modalForm.style.display = 'none';
+            document.body.style.overflow = '';
+        }
     }
 });
+
+// Helper global: asigna la mejor URL válida a un elemento <img>
+function assignBestSrc(imgEl, candidates) {
+    const seen = [];
+    let i = 0;
+    function next() {
+        if (i >= candidates.length) {
+            imgEl.onerror = null;
+            // eliminar imagen rota después de un pequeño retraso
+            setTimeout(()=> { if (imgEl && imgEl.parentNode) imgEl.parentNode.removeChild(imgEl); }, 300);
+            return;
+        }
+        const url = candidates[i++];
+        if (!url || seen.indexOf(url) !== -1) return next();
+        seen.push(url);
+        imgEl.onerror = function(){ next(); };
+        try { imgEl.src = encodeURI(url); } catch(e){ next(); }
+    }
+    next();
+}
 
 // ========================================
 // CARRUSEL PRINCIPAL (QUIÉNES SOMOS)
@@ -60,26 +94,56 @@ const dotsContainer = document.getElementById('carousel-dots');
 
 // Cargar imágenes dinámicamente de la carpeta nosotros
 async function loadMainCarouselImages() {
-    const baseUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/nosotros';
+    // Si los contenedores no existen en esta página, salir sin hacer nada
+    if (!carouselContainer || !dotsContainer) return;
+    // Preferir ruta local cuando se está desarrollando en localhost/127.0.0.1
+    let baseUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/image/nosotros';
+    try {
+        const host = (window && window.location && window.location.hostname) ? window.location.hostname : '';
+        const isLocal = host === '' || host === 'localhost' || host.startsWith('127.') || host === '::1';
+        if (isLocal) {
+            // usar ruta relativa al servidor local (carpeta `image/nosotros`)
+            baseUrl = 'image/nosotros';
+        }
+    } catch (e) {
+        // en caso de error, seguir usando raw.githubusercontent
+    }
+
+    // Intentar usar índice pre-generado `images_index.json` si existe (más rápido y preciso)
+    let index = null;
+    try {
+        const res = await fetch('images_index.json', { cache: 'no-store' });
+        if (res.ok) index = await res.json();
+    } catch (e) {
+        index = null;
+    }
     const maxImages = 24; // Limitar intentos para evitar rate limit y flicker
     const validImages = [];
 
-    // Buscar imágenes existentes deteniéndonos tras varios fallos seguidos
-    let missesInRow = 0;
-    for (let i = 1; i <= maxImages; i++) {
-        const imgUrl = `${baseUrl}/${i}.webp`;
-        try {
-            const res = await fetch(imgUrl, { method: 'HEAD', cache: 'no-store' });
-            if (res.ok) {
-                validImages.push(imgUrl);
-                missesInRow = 0;
-            } else {
+    // Si hay índice y contiene la carpeta 'nosotros', usarlo (los paths en el index son relativos a `image/`)
+    if (index && index['nosotros'] && index['nosotros'].length) {
+        for (const p of index['nosotros']) {
+            // p es 'nosotros/1.webp' etc -> local path 'image/nosotros/1.webp'
+            validImages.push(`image/${p}`);
+        }
+    } else {
+        // Buscar imágenes existentes deteniéndonos tras varios fallos seguidos
+        let missesInRow = 0;
+        for (let i = 1; i <= maxImages; i++) {
+            const imgUrl = `${baseUrl}/${i}.webp`;
+            try {
+                const res = await fetch(imgUrl, { method: 'HEAD', cache: 'no-store' });
+                if (res.ok) {
+                    validImages.push(imgUrl);
+                    missesInRow = 0;
+                } else {
+                    missesInRow++;
+                }
+            } catch {
                 missesInRow++;
             }
-        } catch {
-            missesInRow++;
+            if (missesInRow >= 5 && validImages.length > 0) break; // cortar pronto
         }
-        if (missesInRow >= 5 && validImages.length > 0) break; // cortar pronto
     }
     
     if (validImages.length === 0) {
@@ -104,14 +168,19 @@ async function loadMainCarouselImages() {
     // Agregar imágenes al carrusel con lazy/async para evitar parpadeos
     validImages.forEach((url, index) => {
         const img = document.createElement('img');
-        img.src = url;
         if (index > 0) img.loading = 'lazy';
         img.decoding = 'async';
-        img.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:pointer;';
-        img.onerror = function(){ this.remove(); /* evitar ícono roto */ };
+        img.style.cssText = 'width:100%; height:auto; object-fit:contain; flex-shrink:0; display:block; cursor:pointer; opacity:0; transition:opacity .28s ease, transform .28s ease;';
+        img.classList.add('fade-in');
+
+        // probar varias variantes de ruta: tal cual, con / delante, sin 'image/' y con 'image/' prefijo
+        const candidates = [url, `/${url.replace(/^\/+/, '')}`, url.replace(/^image\//, ''), `image/${url.replace(/^\/+/, '').replace(/^image\//, '')}`];
+        assignBestSrc(img, candidates);
+
+        img.onload = function(){ this.classList.add('visible'); this.style.opacity = '1'; };
         img.onclick = function() { openImageModal(this.src); };
         carouselContainer.appendChild(img);
-        
+
         // Crear dot
         const dot = document.createElement('span');
         dot.className = 'dot';
@@ -167,11 +236,11 @@ async function loadMainCarouselImages() {
 }
 
 function updateCarousel() {
-    if (totalSlides === 0) return;
-    
+    if (!carouselContainer || !dotsContainer || totalSlides === 0) return;
+
     const translateX = -currentSlide * 100;
     carouselContainer.style.transform = `translateX(${translateX}%)`;
-    
+
     // Actualizar dots
     const dots = dotsContainer.querySelectorAll('.dot');
     dots.forEach((dot, index) => {
@@ -183,20 +252,27 @@ function updateCarousel() {
     });
 }
 
-document.getElementById('next-img').onclick = function() {
-    if (totalSlides === 0) return;
-    currentSlide = (currentSlide + 1) % totalSlides;
-    updateCarousel();
-};
+const nextImgBtn = document.getElementById('next-img');
+const prevImgBtn = document.getElementById('prev-img');
+if (nextImgBtn) {
+    nextImgBtn.onclick = function() {
+        if (totalSlides === 0) return;
+        currentSlide = (currentSlide + 1) % totalSlides;
+        updateCarousel();
+    };
+}
+if (prevImgBtn) {
+    prevImgBtn.onclick = function() {
+        if (totalSlides === 0) return;
+        currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+        updateCarousel();
+    };
+}
 
-document.getElementById('prev-img').onclick = function() {
-    if (totalSlides === 0) return;
-    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
-    updateCarousel();
-};
-
-// Cargar imágenes al iniciar
-loadMainCarouselImages();
+// Cargar imágenes al iniciar (solo si el DOM tiene el carrusel)
+if (carouselContainer && dotsContainer) {
+    loadMainCarouselImages();
+}
 
 // Funcionalidad de arrastrar para el carrusel principal
 function initMainCarouselDrag() {
@@ -282,31 +358,79 @@ function initMainCarouselDrag() {
 // MODAL DE IMAGEN
 // ========================================
 function openImageModal(imageSrc) {
-    document.getElementById('modal-image-content').src = imageSrc;
-    document.getElementById('modal-image').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
+    try {
+        const modalImgContent = document.getElementById('modal-image-content');
+        const modalImage = document.getElementById('modal-image');
+        if (modalImgContent && modalImage) {
+            // Preparar loader
+            let loader = modalImage.querySelector('.modal-img-loader');
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.className = 'modal-img-loader';
+                loader.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:10001; color:#fff; font-weight:700; background:rgba(0,0,0,0.4);';
+                loader.innerHTML = '<div style="text-align:center"><div style="font-size:2rem; margin-bottom:8px">⏳</div><div style="font-size:0.95rem; opacity:0.95">Cargando imagen…</div></div>';
+                modalImage.appendChild(loader);
+            }
+
+            // abrir modal y bloquear scroll
+            modalImage.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            // Reset src antes de asignar
+            modalImgContent.src = '';
+
+            // Handlers
+            function onLoaded(){
+                if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+                modalImgContent.removeEventListener('load', onLoaded);
+                modalImgContent.removeEventListener('error', onError);
+            }
+            function onError(){
+                if (loader) loader.innerHTML = '<div style="text-align:center"><div style="font-size:2rem; margin-bottom:8px">⚠️</div><div style="font-size:0.95rem; opacity:0.95">No se pudo cargar la imagen</div></div>';
+                modalImgContent.removeEventListener('load', onLoaded);
+                modalImgContent.removeEventListener('error', onError);
+            }
+
+            modalImgContent.addEventListener('load', onLoaded);
+            modalImgContent.addEventListener('error', onError);
+
+            // asignar src después de montar handlers para capturar eventos
+            modalImgContent.src = imageSrc;
+        }
+    } catch (err) {
+        console.error('openImageModal error:', err);
+    }
 }
 
-document.getElementById('cerrar-image').onclick = function() {
-    document.getElementById('modal-image').style.display = 'none';
-    document.body.style.overflow = '';
-};
-
-// Cerrar modal de imagen al hacer clic en el fondo
-document.getElementById('modal-image').onclick = function(e) {
-    if (e.target === this) {
-        document.getElementById('modal-image').style.display = 'none';
+const cerrarImageBtn = document.getElementById('cerrar-image');
+const modalImageRoot = document.getElementById('modal-image');
+if (cerrarImageBtn && modalImageRoot) {
+    cerrarImageBtn.onclick = function() {
+        // limpiar src para detener descargas y liberar memoria
+        const img = document.getElementById('modal-image-content');
+        if (img) img.src = '';
+        modalImageRoot.style.display = 'none';
         document.body.style.overflow = '';
-    }
-};
+    };
 
-// Cerrar modal de imagen con ESC
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && document.getElementById('modal-image').style.display === 'flex') {
-        document.getElementById('modal-image').style.display = 'none';
-        document.body.style.overflow = '';
-    }
-});
+    // Cerrar modal de imagen al hacer clic en el fondo
+    modalImageRoot.onclick = function(e) {
+        if (e.target === this) {
+            const img = document.getElementById('modal-image-content');
+            if (img) img.src = '';
+            modalImageRoot.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    };
+
+    // Cerrar modal de imagen con ESC (defensivo)
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && getComputedStyle(modalImageRoot).display === 'flex') {
+            modalImageRoot.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+    });
+}
 
 // ========================================
 // GOOGLE SHEETS LIVE FETCH (GENÉRICO)
@@ -325,6 +449,287 @@ document.addEventListener('keydown', function(e) {
     } catch (err) {
         console.warn('No se pudo consultar Google Sheets:', err);
     }
+})();
+
+// ========================================
+// DESCARGAS: toggle detalles
+// ========================================
+const downloadInfoBtn = document.getElementById('download-info');
+const downloadDetails = document.getElementById('download-details');
+if (downloadInfoBtn && downloadDetails) {
+    downloadInfoBtn.addEventListener('click', function() {
+        const expanded = this.getAttribute('aria-expanded') === 'true';
+        this.setAttribute('aria-expanded', (!expanded).toString());
+        if (expanded) {
+            downloadDetails.style.display = 'none';
+        } else {
+            downloadDetails.style.display = 'block';
+        }
+    });
+}
+
+// Comprobar si el ZIP del texture pack existe; si no, desactivar el enlace
+(function checkTexturePack(){
+    const dlAnchor = document.getElementById('download-texture');
+    if (!dlAnchor) return;
+    const localUrl = dlAnchor.getAttribute('href');
+    const rawUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/texturepack/nefitania-texturepack.zip';
+    // Probar local primero
+    (async function(){
+        try {
+            const controller = new AbortController();
+            const t = setTimeout(()=> controller.abort(), 4000);
+            const res = await fetch(localUrl, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+            clearTimeout(t);
+            if (res.ok) return; // local available
+        } catch (e) {
+            // fallthrough to raw
+        }
+
+        // Probar raw.githubusercontent
+        try {
+            const controller2 = new AbortController();
+            const t2 = setTimeout(()=> controller2.abort(), 4000);
+            const res2 = await fetch(rawUrl, { method: 'HEAD', cache: 'no-store', signal: controller2.signal });
+            clearTimeout(t2);
+            if (res2.ok) {
+                dlAnchor.href = rawUrl; // usar raw como fallback
+                return;
+            }
+        } catch (e) {
+            // fallthrough
+        }
+
+        // Si llegamos aquí, deshabilitar el enlace
+        dlAnchor.classList.add('disabled');
+        dlAnchor.style.opacity = '0.6';
+        dlAnchor.title = 'Archivo no disponible en el repositorio';
+    })();
+})();
+
+// Mejora UX: si el enlace está deshabilitado, interceptar clic y ofrecer copiar el enlace raw o mostrar instrucciones
+(function enhanceDownloadUX(){
+    const dlAnchor = document.getElementById('download-texture');
+    if (!dlAnchor) return;
+    const rawUrl = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/texturepack/nefitania-texturepack.zip';
+
+    dlAnchor.addEventListener('click', function(e){
+        if (this.classList.contains('disabled')) {
+            e.preventDefault();
+            // mostrar detalles expandidos con instrucción si existe el panel
+            const details = document.getElementById('download-details');
+            if (details) {
+                details.style.display = 'block';
+                // añadir mensaje solo una vez
+                if (!document.getElementById('download-missing-note')) {
+                    const note = document.createElement('div');
+                    note.id = 'download-missing-note';
+                    note.style.cssText = 'margin-top:8px; padding:10px; background:rgba(255,255,255,0.02); border-radius:8px; border:1px solid rgba(255,255,255,0.03); color:var(--muted);';
+                    note.innerHTML = `El paquete no está disponible localmente. Puedes intentar descargarlo desde GitHub raw: <code style="word-break:break-all;">${rawUrl}</code> <button id="copy-raw" class="btn" style="margin-left:8px;">Copiar enlace</button>`;
+                    details.appendChild(note);
+
+                    const copyBtn = document.getElementById('copy-raw');
+                    copyBtn.addEventListener('click', async function(){
+                        try {
+                            await navigator.clipboard.writeText(rawUrl);
+                            this.textContent = 'Copiado ✓';
+                            setTimeout(()=> this.textContent = 'Copiar enlace', 2500);
+                        } catch (err) {
+                            alert('No fue posible copiar el enlace al portapapeles. En su lugar, selecciona y copia manualmente.');
+                        }
+                    });
+                }
+            } else {
+                alert('El texture pack no está disponible. Revisa la carpeta `texturepack/` en el repositorio o contacta a un administrador.');
+            }
+        }
+    });
+})();
+
+// ========================================
+// AUDIO FLOTANTE (botón + meter)
+// ========================================
+;(function initFloatingAudio(){
+    const MUSIC_BUTTON_ID = 'music-button';
+    const MUSIC_METER_ID = 'music-meter';
+    const MUSIC_AUDIO_ID = 'music-player';
+
+    // Crear elementos si no existen en el DOM
+    let musicBtn = document.getElementById(MUSIC_BUTTON_ID);
+    let musicMeter = document.getElementById(MUSIC_METER_ID);
+    let audioEl = document.getElementById(MUSIC_AUDIO_ID);
+
+    if (!musicBtn) {
+        musicBtn = document.createElement('button');
+        musicBtn.id = MUSIC_BUTTON_ID;
+        musicBtn.title = 'Reproducir / Pausar música (tecla M)';
+        musicBtn.innerHTML = '<span class="icon">♫</span>';
+        document.body.appendChild(musicBtn);
+    }
+
+    if (!musicMeter) {
+        musicMeter = document.createElement('div');
+        musicMeter.id = MUSIC_METER_ID;
+        musicMeter.innerHTML = '<i></i>';
+        document.body.appendChild(musicMeter);
+    }
+
+    if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.id = MUSIC_AUDIO_ID;
+        audioEl.preload = 'auto';
+        audioEl.loop = true;
+        audioEl.crossOrigin = 'anonymous';
+        audioEl.style.display = 'none';
+        document.body.appendChild(audioEl);
+
+        // Intentar establecer el audio desde el recurso local primero, luego fallback a raw.githubusercontent
+        (async function setAudioSourceWithFallback(){
+            // Probar varios candidatos locales (mp3/ogg) dentro de `song/` y `assets/` y luego raw.githubusercontent
+            const candidatesLocal = [
+                'song/nefitania.ogg',
+                'song/nefitania.mp3',
+                'song/nefitania-theme.mp3',
+                'song/diabla.ogg',
+                'assets/nefitania-theme.mp3'
+            ];
+            const rawPath = 'https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/assets/nefitania-theme.mp3';
+            for (const localPath of candidatesLocal) {
+                try {
+                    const controller = new AbortController();
+                    const t = setTimeout(()=> controller.abort(), 3000);
+                    const res = await fetch(localPath, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+                    clearTimeout(t);
+                    if (res && res.ok) {
+                        audioEl.src = localPath;
+                        return;
+                    }
+                } catch (e) {
+                    // seguir probando siguientes candidatos
+                }
+            }
+            // Intentar raw.githubusercontent como último recurso
+            try {
+                const controller2 = new AbortController();
+                const t2 = setTimeout(()=> controller2.abort(), 3000);
+                const res2 = await fetch(rawPath, { method: 'HEAD', cache: 'no-store', signal: controller2.signal });
+                clearTimeout(t2);
+                if (res2 && res2.ok) {
+                    audioEl.src = rawPath;
+                    return;
+                }
+            } catch (e) {
+                // ninguno disponible
+            }
+            // Si llegamos aquí, no hay audio disponible: desactivar botón
+            musicBtn.disabled = true;
+            musicBtn.title = 'Audio no disponible (archivo no encontrado)';
+            setPlayingUI(false);
+        })();
+    }
+
+    // Si el archivo de audio no existe, desactivar el botón y mostrar tooltip (evento de carga fallida)
+    audioEl.addEventListener('error', function(){
+        musicBtn.disabled = true;
+        musicBtn.title = 'Audio no disponible (archivo no encontrado)';
+        setPlayingUI(false);
+    });
+
+    // Verificar existencia del recurso MP3 mediante HEAD para desactivar antes
+    (function checkAudioResource(){
+        try {
+            const url = audioEl.src;
+            const controller = new AbortController();
+            const t = setTimeout(()=> controller.abort(), 5000);
+            fetch(url, { method: 'HEAD', cache: 'no-store', signal: controller.signal })
+                .then(res => {
+                    clearTimeout(t);
+                    if (!res.ok) {
+                        musicBtn.disabled = true;
+                        musicBtn.title = 'Audio no disponible (archivo no encontrado)';
+                        setPlayingUI(false);
+                    }
+                })
+                .catch(err => {
+                    clearTimeout(t);
+                    musicBtn.disabled = true;
+                    musicBtn.title = 'Audio no disponible (offline o bloqueado)';
+                    setPlayingUI(false);
+                });
+        } catch (e) {
+            musicBtn.disabled = true;
+            musicBtn.title = 'Audio no disponible';
+            setPlayingUI(false);
+        }
+    })();
+
+    // Restore play state from localStorage
+    const key = 'nefitania_music_playing_v1';
+    function setPlayingUI(isPlaying){
+        if (isPlaying) {
+            musicBtn.classList.add('playing');
+            // meter progress full when playing
+            const meterSpan = musicMeter.querySelector('i');
+            if (meterSpan) meterSpan.style.width = '100%';
+        } else {
+            musicBtn.classList.remove('playing');
+            const meterSpan = musicMeter.querySelector('i');
+            if (meterSpan) meterSpan.style.width = '0%';
+        }
+    }
+
+    let saved = false;
+    try { saved = localStorage.getItem(key) === '1'; } catch(e) { saved = false; }
+    if (saved) {
+        // try to autoplay; may be blocked by browser until user interacts — safe fallback
+        audioEl.play().then(()=> setPlayingUI(true)).catch(()=> setPlayingUI(false));
+    } else {
+        setPlayingUI(false);
+    }
+
+    function togglePlay(){
+        if (audioEl.paused) {
+            audioEl.play().then(()=>{
+                setPlayingUI(true);
+                try{ localStorage.setItem(key,'1'); }catch{}
+            }).catch(()=>{
+                // Si la reproducción falla (autoplay bloqueado o recurso faltante), desactivar UI amigable
+                setPlayingUI(false);
+                musicBtn.classList.remove('playing');
+                musicBtn.title = 'Haz clic para reproducir (el navegador puede bloquear autoplay)';
+            });
+        } else {
+            audioEl.pause();
+            setPlayingUI(false);
+            try{ localStorage.setItem(key,'0'); }catch{}
+        }
+    }
+
+    musicBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        togglePlay();
+    });
+
+    // Keyboard shortcut 'm' or 'M' to toggle
+    document.addEventListener('keydown', function(e){
+        if (e.key && (e.key.toLowerCase() === 'm')) {
+            // avoid toggling when focus on input/textarea
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+            togglePlay();
+        }
+    });
+
+    // Update meter on timeupdate to have a small animation (simple)
+    audioEl.addEventListener('timeupdate', function(){
+        const meterSpan = musicMeter.querySelector('i');
+        if (!meterSpan) return;
+        // make a soft pulsing width between 60% and 100% based on sine of time
+        const t = audioEl.currentTime || 0;
+        const w = 60 + Math.abs(Math.sin(t * 0.8)) * 40; // 60-100
+        meterSpan.style.width = (audioEl.paused ? 0 : `${w}%`);
+    });
+
 })();
 
 // ========================================
@@ -353,6 +758,17 @@ function normalizeFolderPath(path) {
         .map((seg, i) => (i === 0 ? seg : encodeURIComponent(seg))) // no codificar 'image'
         .join('/');
     // Usar URL de GitHub raw para producción
+    try {
+        // Si la web se sirve desde localhost/127.0.0.1 o file://, preferir ruta relativa local
+        const host = (window && window.location && window.location.hostname) ? window.location.hostname : '';
+        const isLocal = host === '' || host === 'localhost' || host.startsWith('127.') || host === '::1';
+        if (isLocal) {
+            // devolver ruta relativa que apunte a la carpeta `image/...` del servidor local
+            return `/${encodedPath}`.replace(/^\/+/, '');
+        }
+    } catch (e) {
+        // ignore
+    }
     return `https://raw.githubusercontent.com/noumanro/nefitaniaweb2/main/${encodedPath}`;
 }
 
@@ -481,28 +897,28 @@ function renderProjectCard(project) {
     outer.style.cssText = 'margin-top: auto; min-height: 200px;';
 
     const shell = document.createElement('div');
-    shell.style.cssText = 'position:relative; max-width:100%; margin:auto; overflow:hidden; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,.25);';
+    shell.style.cssText = 'position:relative; max-width:900px; width:100%; margin:auto; overflow:hidden; border-radius:12px; box-shadow:0 6px 36px rgba(0,0,0,.28);';
 
     const container = document.createElement('div');
     container.id = `carousel-container-${slug}`;
-    container.style.cssText = 'display:flex; transition:transform 0.3s ease; height:200px;';
+    container.style.cssText = 'display:flex; transition:transform 0.3s ease; height:auto;';
 
     const prev = document.createElement('button');
     prev.className = 'carousel-prev';
     prev.dataset.carousel = slug;
     prev.textContent = '‹';
-    prev.style.cssText = 'position:absolute; left:5px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:50%; width:30px; height:30px; font-size:1rem; cursor:pointer; transition:all 0.2s; z-index:10;';
+    prev.style.cssText = 'position:absolute; left:12px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.75); color:#fff; border:none; border-radius:50%; width:56px; height:56px; font-size:1.6rem; cursor:pointer; transition:all 0.18s; z-index:10; box-shadow:0 8px 20px rgba(0,0,0,0.45);';
 
     const next = document.createElement('button');
     next.className = 'carousel-next';
     next.dataset.carousel = slug;
     next.textContent = '›';
-    next.style.cssText = 'position:absolute; right:5px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.7); color:#fff; border:none; border-radius:50%; width:30px; height:30px; font-size:1rem; cursor:pointer; transition:all 0.2s; z-index:10;';
+    next.style.cssText = 'position:absolute; right:12px; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.75); color:#fff; border:none; border-radius:50%; width:56px; height:56px; font-size:1.6rem; cursor:pointer; transition:all 0.18s; z-index:10; box-shadow:0 8px 20px rgba(0,0,0,0.45);';
 
     const dotsContainer = document.createElement('div');
     dotsContainer.className = 'carousel-dots';
     dotsContainer.dataset.carousel = slug;
-    dotsContainer.style.cssText = 'position:absolute; bottom:8px; left:50%; transform:translateX(-50%); display:flex; gap:4px;';
+    dotsContainer.style.cssText = 'position:absolute; bottom:14px; left:50%; transform:translateX(-50%); display:flex; gap:10px;';
 
     shell.appendChild(container);
     shell.appendChild(prev);
@@ -611,7 +1027,39 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         return;
     }
     
+
     const extensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    // Intentar usar images_index.json si está disponible (mapa generado por script)
+    async function tryIndexLoad() {
+        try {
+            const res = await fetch('images_index.json', { cache: 'no-store' });
+            if (!res.ok) return false;
+            const idx = await res.json();
+
+            // Derivar clave de carpeta: eliminar prefijo hasta 'image/' si existe
+            let key = folderPath;
+            try {
+                // Si folderPath es una URL raw, extraer segmento después 'image/'
+                const m = String(folderPath).match(/image\/(.*)$/i);
+                if (m && m[1]) key = decodeURIComponent(m[1]);
+                else {
+                    // si es ruta relativa 'image/...' o solo folder, limpiar
+                    key = String(folderPath).replace(/^image\//, '');
+                    key = decodeURIComponent(key);
+                }
+            } catch (e) { key = String(folderPath).replace(/^image\//, ''); }
+
+            // keys in index may use '' or '/'
+            if (idx[key] && idx[key].length) {
+                idx[key].forEach((p, i) => addImageToCarousel(`image/${p}`, loadedCount++));
+                removeOverlay();
+                return true;
+            }
+            return false;
+        } catch (e) {
+            return false;
+        }
+    }
 
     let loadedCount = 0;
 
@@ -619,16 +1067,15 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
     function addImageToCarousel(imageSrc, index) {
         console.log('Agregando imagen:', imageSrc, 'en índice:', index);
         const imgElement = document.createElement('img');
-        imgElement.src = imageSrc;
         imgElement.loading = 'lazy';
-        imgElement.style.cssText = 'width:100%; height:100%; object-fit:cover; flex-shrink:0; display:block; cursor:grab;';
+        imgElement.style.cssText = 'width:100%; height:auto; object-fit:contain; flex-shrink:0; display:block; cursor:grab; opacity:0; transition:opacity .28s ease;';
+        imgElement.classList.add('fade-in');
+        // Probar varias variantes de ruta para mayor robustez
+        const candidates = [imageSrc, `/${imageSrc.replace(/^\/+/, '')}`, imageSrc.replace(/^image\//, ''), `image/${imageSrc.replace(/^\/+/, '').replace(/^image\//, '')}`];
+        assignBestSrc(imgElement, candidates);
+        imgElement.onload = function(){ this.classList.add('visible'); this.style.opacity = '1'; };
         
-        // Agregar doble click para abrir modal
-        imgElement.addEventListener('dblclick', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            openImageModal(this.src);
-        });
+        // Apertura de modal gestionada por la lógica de click/drag en initSingleCarouselDrag
         
         imgElement.draggable = false; // Prevenir arrastrar imagen como archivo
         container.appendChild(imgElement);
@@ -638,7 +1085,7 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         dot.className = 'dot';
         dot.dataset.slide = index;
         dot.dataset.carousel = carouselName;
-        dot.style.cssText = `width:6px; height:6px; border-radius:50%; background:${index === 0 ? '#ff6a00' : 'rgba(255,255,255,0.5)'}; cursor:pointer; transition:all 0.2s;`;
+        dot.style.cssText = `width:8px; height:8px; border-radius:50%; background:${index === 0 ? '#ff6a00' : 'rgba(255,255,255,0.5)'}; cursor:pointer; transition:all 0.2s;`;
         dotsContainer.appendChild(dot);
 
         // Agregar evento click al dot
@@ -663,8 +1110,10 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
         }
     }
 
-    // Primero, intentar leer el listado del directorio (si el servidor lo permite)
+    // Primero, intentar usar index y si no, leer el listado del directorio (si el servidor lo permite)
     async function tryDirectoryListing() {
+        const usedIndex = await tryIndexLoad();
+        if (usedIndex) return true;
         try {
             // Para GitHub raw, intentamos cargar imágenes numeradas (1.webp, 2.webp, etc.)
             const maxImages = 30; // Intentar hasta 30 imágenes
@@ -690,10 +1139,47 @@ function loadProjectCarouselFromFolder(folderPath, carouselName) {
             if (validImages.length === 0) throw new Error('No se encontraron imágenes');
             
             validImages.forEach((url, idx) => addImageToCarousel(url, loadedCount++));
-            
+
+            // Quitar overlay y preparar estado
             removeOverlay();
+
             // Inicializar drag si cargamos imágenes
             setTimeout(() => initSingleCarouselDrag(carouselName), 50);
+
+            // Inicializar estado del carrusel y autoplay (comportamiento igual al carrusel principal)
+            const total = container.children.length;
+            if (!projectCarousels[carouselName]) projectCarousels[carouselName] = { current: 0, total: total };
+            projectCarousels[carouselName].total = total;
+
+            let carouselInterval = null;
+            const startCarouselAutoplay = () => {
+                if (!carouselInterval && total > 1) {
+                    carouselInterval = setInterval(() => {
+                        projectCarousels[carouselName].current = (projectCarousels[carouselName].current + 1) % projectCarousels[carouselName].total;
+                        updateProjectCarousel(carouselName, projectCarousels[carouselName].current, projectCarousels[carouselName].total);
+                    }, 5000);
+                }
+            };
+            const stopCarouselAutoplay = () => {
+                if (carouselInterval) {
+                    clearInterval(carouselInterval);
+                    carouselInterval = null;
+                }
+            };
+
+            // Observer para pausar el autoplay cuando el carrusel no esté visible
+            try {
+                const observer = new IntersectionObserver(entries => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) startCarouselAutoplay(); else stopCarouselAutoplay();
+                    });
+                }, { threshold: 0.1 });
+                observer.observe(container);
+            } catch (e) {
+                // Si IntersectionObserver no disponible, iniciar autoplay por defecto
+                startCarouselAutoplay();
+            }
+
             return true;
         } catch (e) {
             console.info('No se pudieron cargar imágenes de', folderPath, '-', e.message || e);
